@@ -1,0 +1,304 @@
+'Updated 6/17/08 JMJ: Added "StimSampleRate" row to output toe file
+'Updated 6/16/08 JMJ: Added output of spike shapes
+'Updated 8/06/08 JVT: Changed variable repchan to 29 instead of 30 in accordance with chan 29 being used as stim id channel
+
+const MAXREPS% := 128;
+const MAXSPIKES% := 10000;
+const MAXSAMPLES% := 3000000; 'max size for one stimulus repetition = ~50 seconds at 17kHz 'JMJ 06/17/08: Tripled this value. Should now be ~150seconds for one stim repetition.
+const MAXSTIMS% := 256;
+const digchan% := 31;   'channel containing stimulus start time info. Set to 32 for use with the new sequencer code. SEt to 31 for old.
+const trigchan% := 2;   'channel containing spike time info
+const repchan% := 29;   'channel containing stimulus ID info
+const stimchan% := 2; 'TODO: figure out which channel has the stimulus on it for now assumes chan2
+const dejitter% := 0;
+const oldstyle% := 0;
+const sampleSpikeTraceChoices% := 20;
+
+var spikechan%, chlist%[8], stimpath$; 
+var stimreps%, peak:=0.0, trough :=0.0, start:=0.0, i%, j%, m%, stimonset, spkoffset[MAXREPS%];
+var trigtimes[MAXREPS%], numreps%, starttimes[MAXREPS%], reptimes[MAXREPS%], digtimes[MAXREPS%];
+var repstart[MAXREPS%], repstop[MAXREPS%];
+var spiketimes[MAXSPIKES%], newspiketimes[MAXREPS%][MAXSPIKES%];
+var waveforms;
+'var spikeshapes%[
+var ch%, nspikes%[MAXREPS%], sortpath$, numFs%, Fnames$[MAXSTIMS%];
+var stimf$, toefname$,outf%;
+var subjectID$, pen$, site$, sort$, run$;
+var foo%, bar$;
+var waveformChs%[8];
+var voltageWaveform[MAXSAMPLES%];
+var waveformChan%;
+var wavefname$;
+var stepSize;
+var numSamples%;
+var waveformStartTime, waveformStopTime;
+var maxNumReps% := 0;
+var basepath$, basedrive$,toepath$;
+var stimWaveform%;
+var waveformRate%;
+
+FilePathSet(""); 
+sortpath$ := FilePath$();
+PrintLog("\n\n\nsort path is set to %s\n", sortpath$);
+numFs%:=FileList(Fnames$[],0);
+PrintLog("found %d sorted multirep files\n", numFs%);
+stimpath$ := FilePath$();
+stimpath$ := sortpath$ + "..\\..\\..\\..\\..\\..\\stims\\";
+
+
+'parse the sort path
+ReadSetup("","", "", "", "\\");
+foo% := ReadStr(sortpath$, basedrive$, basepath$, subjectID$, bar$, run$, pen$, site$, bar$, sort$ );
+
+
+var ok%,which%:=0;
+DlgCreate("Choose sample spike trace to export");
+var list$[sampleSpikeTraceChoices%];
+for m% := 0 to Min(numFs%, sampleSpikeTraceChoices%)-1 do
+    list$[m%] := Mid$(Fnames$[m%], 6, Len(Fnames$[m%])-9);
+    'DlgCheck(m%+1,stimf$);
+next;
+DlgList(1,"Choose",list$[]);
+ok% := DlgShow(which%);
+
+if ok% = 0 then
+    halt;
+endif;
+
+
+
+var cellComments$ := "Enter comments here";
+DlgCreate("Enter Comments for this cell");
+DlgString(1,200, 10000);
+ok% := DlgShow(cellComments$);
+if ok% = 0 then
+    halt;
+endif;
+
+var cellCommentsFileName$;
+cellCommentsFileName$ := "CellComments.txt";
+
+
+
+
+'cycle through the multirep files in this directory
+for m% := 0 to numFs%-1 do
+    FilePathSet(sortpath$);
+    'cut% := LenFname[m%] - 4;
+	stimf$ := Mid$(Fnames$[m%], 6, Len(Fnames$[m%])-9);
+	PrintLog("working on multirep file %s, from stimulus: %s\n", Fnames$[m%], stimf$);
+	stimreps%:=FileOpen(Fnames$[m%],0,3);
+
+	'figure out the wavemark channel 
+	View(stimreps%).ChanList(chlist%, 16); 'Get just the wavemark data channels
+    View(stimreps%).ChanList(waveformChs%,1); 'Get just the waveform data channels
+	spikechan% := chlist%[1];
+    waveformChan% := waveformChs%[1];
+	'PrintLog("chlist[0]: %d\t chlist[1]: %d\t spikechan: %d\n", chlist%[0], chlist%[1], spikechan%);
+
+	'find the rep and trigger times 
+	numreps% := ChanData(repchan%, reptimes[], 0.0, Maxtime(repchan%)+1.0);
+    if numreps% > maxNumReps% then
+        maxNumReps% := numreps%
+    endif;
+    
+	View(stimreps%).ChanData(trigchan%, trigtimes[], 0.0, View(stimreps%).Maxtime(trigchan%)+1.0);
+    View(stimreps%).ChanData(digchan%, digtimes[], 0.0, View(stimreps%).Maxtime(digchan%)+1.0);
+    'PrintLog ("trigtimes %.6f\n",trigtimes);
+    'PrintLog ("digtimes %.6f\n", digtimes);
+    
+    
+	if dejitter% then
+		'(2) process the stimulus channel
+		ch% := ChanDuplicate(stimchan%);  'create a duplicate
+		ChanProcessAdd(ch%,2); 'Add DC Remove to channel 2
+	
+		for i% := 0 to numreps%-1 do
+			ArrConst(spiketimes[], 0); 'zero out the spiketimes array
+			'find peak & trough
+			peak := ChanSearch(ch%, 4, trigtimes[i%], trigtimes[i%]+0.020, 0.001);
+			trough := ChanSearch(ch%, 5, trigtimes[i%], trigtimes[i%]+0.020, -0.001);
+			'PrintLog("rep %d was triggered at %.6f \n", i%+1, trigtimes[i%]);
+			'PrintLog("first peak is at : %.5f; first trough is at: %.5f \n", peak, trough);
+			starttimes[i%] := min(peak, trough);
+			stimonset := starttimes[i%]; 
+			'PrintLog("newstart time is %.6f , spike offset is %.6f\n", starttimes[i%], starttimes[i%]-trigtimes[i%]);
+			'now get spike times for this rep	
+			repstart[i%] := reptimes[i%];
+			if i%<numreps%-1 then repstop[i%] := reptimes[i%+1]-0.00001; else repstop[i%]:= Maxtime(spikechan%)+0.01; endif;
+			nspikes%[i%] := ChanData(spikechan%, spiketimes[], repstart[i%], repstop[i%]);
+			'PrintLog ("found %d spikes in rep %d, which starts at %.6f and ends at %.6f\n", nspikes%[i%], i%+1, repstart[i%], repstop[i%]);
+			for j% := 0 to nspikes%[i%]-1 do
+				newspiketimes[i%][j%] := spiketimes[j%]- stimonset; 
+				'PrintLog("spike %d of %d is at: %.6f, time rel stimulus onset %.6f\n", j%+1, nspikes%[i%], spiketimes[j%], newspiketimes[i%][j%]);
+			next;
+        next;
+        View(stimreps%).ChanDelete(ch%); 'delete the copied stimulus channel
+	else
+		ch% := stimchan%;
+		for i% := 0 to numreps%-1 do
+			ArrConst(spiketimes[], 0); 'zero out the spiketimes array
+			stimonset := digtimes[i%]; 
+            'PrintLog ("\stim start time = %.6f\"n", digtimes[i%]);
+			repstart[i%] := reptimes[i%];
+			if i%<numreps%-1 then 
+                repstop[i%] := reptimes[i%+1]-0.00001; 
+            else 
+                repstop[i%]:= View(stimreps%).Maxtime(spikechan%)+0.01; 
+            endif;
+			nspikes%[i%] := View(stimreps%).ChanData(spikechan%, spiketimes[], repstart[i%], repstop[i%]);
+            'waveforms := ChanData(spikechan%, spikeshapes%[], repstart[i%], repstop[i%]);
+			'PrintLog ("\nfound %d spikes in rep %d, which starts at %.6f and ends at %.6f\n", nspikes%[i%], i%+1, repstart[i%], repstop[i%]);
+			for j% := 0 to nspikes%[i%]-1 do
+				newspiketimes[i%][j%] := spiketimes[j%]- stimonset; 
+				'PrintLog("spike %d of %d is at: %.6f, time rel trigger %.6f\n", j%+1, nspikes%[i%], spiketimes[j%], newspiketimes[i%][j%]);
+			next;
+            if i% = 0 then
+                
+                stepSize := View(stimreps%).Binsize(waveformChan%);
+                'PrintLog("binsize = %10f\n", stepSize);
+                'PrintLog("repstart[0] = %10f\n", repstart[0]);
+                'PrintLog("repstop[0] = %10f\n", repstop[0]);
+                waveformStartTime := repstart[0] - stimonset;
+                waveformStopTime := repstop[0] - stimonset;
+                numSamples% := Ceil((repstop[0] - repstart[0])/stepSize);
+                View(stimreps%).ChanData(waveformChan%, voltageWaveform[], repstart[0], repstop[0]);
+            endif
+            
+            
+		next; 
+        
+	endif;
+	FileClose();
+
+
+		'Load up stimulus file to get sampling rate:
+        stimWaveform% := FileOpen(stimpath$ + stimf$ + ".smr", 0, 3);
+        if (stimWaveform% < 0) then
+        PrintLog("Error opening " + stimpath$ + stimf$ + ".smr\n");
+        PrintLog("Error message is; " + Error$(stimWaveform%));
+        endif;
+        View(stimWaveform%).ChanList(chlist%,1);
+        waveformRate% := 1/View(stimWaveform%).BinSize(chlist%[1]);
+        FileClose();
+   
+	
+
+		'****************************************
+		'NEW OUTPUT HEADER
+            'line 1: name of the stimulus (.wav) file associated with these reps
+            'line 2: Sampling frequency of stimulus
+			'line 3: subject ID number
+			'line 4: penetration info
+			'line 5: site info
+			'line 6: sort number
+			'line 7: number of reps 
+			'lines 8 to nreps+7 : number of spikes in each rep
+			'lines nreps+8 to end: times in seconds for each spike (ascending by rep) 
+	toefname$ := sort$ + stimf$ + "_toe.txt";
+    toepath$ := basedrive$ + "\\" + basepath$ + "\\" + subjectID$ + "\\sortedData\\";
+    FilePathSet(toepath$, 0 , 1); 'make sure there is a directory for sorting output
+    toepath$ := toepath$ + "\\" + Mid$(pen$,7);
+    FilePathSet(toepath$ , 0 , 1); 'make sure there is a directory for sorting output
+    toepath$ := toepath$ + "\\" + Mid$(site$,8);
+    FilePathSet(toepath$ , 0 , 1); 'make sure there is a directory for sorting output
+    toepath$ := toepath$ + "\\" + sort$;
+    FilePathSet(toepath$ , 0 , 1); 'make sure there is a directory for sorting output
+    
+    
+        outf% := FileOpen(toefname$, 8, 1);
+		'PrintLog("just opened % s with view handle %d, the current view is %d\n", toefname$, outf%, View(0));
+        Print("%s.wav\n", stimf$);
+        Print("StimSampleRate: %d\n", waveformRate%);
+		Print("%s\n", subjectID$);
+		Print("%s\n", Mid$(pen$,7));
+		Print("%s\n", Mid$(site$,8));
+		Print("%s\n", sort$);
+		Print("%d\n", numreps%);
+	
+	'output the spike counts and times
+	for i% := 0 to numreps%-1 do
+		Print("%d\n", nspikes%[i%]);
+	next;
+	
+	for i% := 0 to numreps%-1 do
+		for j% := 0 to nspikes%[i%]-1 do
+			Print("%.6f\n", newspiketimes[i%][j%]);
+		next;
+	next;
+	FileClose(); 
+    
+    if m% = which% then
+        wavefname$ := sort$ + stimf$ + "_waveform.bin";
+        outf% := FileOpen(wavefname$, 9, 1);
+        BWriteSize(8, waveformStartTime, waveformStopTime, voltageWaveform[:numSamples%]);
+        FileClose();
+    endif;
+    
+    
+    
+	
+
+	if oldstyle% then 'make another set of toelists with the oldstyle headers
+		'OLD STYLE HEADER
+			'line 1: number of units (now always 1)
+			'line 2: number of reps
+			'line 3: start line (always 4)
+			'lines 4 to nreps+3 : number of spikes in each rep
+			'lines nreps+4 to end: times in seconds for each spike (ascending by rep) 
+		toefname$ := sort$ + stimf$ + ".toe_lis";
+		outf% := FileOpen(toefname$, 8, 1);
+		'PrintLog("just opened % s with view handle %d, the current view is %d\n", toefname$, outf%, View(0));
+		Print("%1\n");
+		Print("%d\n", numreps%);
+		Print("%4\n");
+
+		'output the spike counts and times
+		for i% := 0 to numreps%-1 do
+			Print("%d\n", nspikes%[i%]);
+		next;
+		for i% := 0 to numreps%-1 do
+			for j% := 0 to nspikes%[i%]-1 do
+				Print("%.6f\n", newspiketimes[i%][j%]);
+			next;
+		next;
+		FileClose(); 
+	endif;
+    
+    
+ '   FilePathSet(""); 
+ '   sortpath$ := FilePath$();
+    
+ '   ReadSetup("","", "", "", "\\");
+ '   foo% := ReadStr(sortpath$, bar$, bar$, subjectID$, bar$, run$, pen$, site$, bar$, sort$ );
+    
+    
+    
+    
+next;		
+
+
+FilePathSet(toepath$);
+var fileReturn%;
+fileReturn% := FileOpen(cellCommentsFileName$,8,1);
+Print("SubjectID: %s\n", subjectID$);
+Print("Penetration: %s\n", Mid$(pen$,7));
+Print("Site: %s\n", Mid$(site$,8));
+Print("Sort: %s\n", sort$);
+Print("Max Stimulus Repetitions: %d\n", maxNumReps%);
+Print("Stimuli Presented: ");
+for m% := 0 to numFs%-1 do
+    stimf$ := Mid$(Fnames$[m%], 6, Len(Fnames$[m%])-9);
+    Print(stimf$);
+    Print(" ");
+next;
+Print("\n\n");
+
+    
+Print("Comments: \n");
+
+Print(cellComments$);
+FileClose();
+FilePathSet(sortpath$);
+
+'done!

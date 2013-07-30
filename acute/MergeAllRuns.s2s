@@ -1,0 +1,127 @@
+'TODO: update so that  penetration folders are prefixed with "pen" and site folders are prefixed with "site"  DONE.
+
+
+
+'Select the top-level data directory.
+if FilePathSet("") <> 0 then
+    halt; 'halt script if cancel button is pressed.
+endif
+
+'Save the experiment path.
+var experimentpath$;
+experimentpath$ := FilePath$();
+
+var m%,n%,p%,q%,r%;
+
+
+'Define the new data directory.
+var ret%;
+var parentDirectory$;
+ret% := FileList(parentDirectory$, -3);
+var mergedDataPath$ := parentDirectory$ + "dAll\\";
+'create the new data directory.
+ret% := FilePathSet(mergedDataPath$, 0, 1);
+var mergedDataPathRun$ := mergedDataPath$ + "runAll\\";
+ret% := FilePathSet(mergedDataPathRun$, 0, 1);
+
+'Now go back to the experiment path:
+ret% := FilePathSet(experimentpath$, 0);
+
+
+
+ 'start parsing through all the data directories:
+var runDirNames$[200];
+var numRunDirs%;
+var runpath$;
+
+
+numRunDirs% := FileList(runDirNames$[],-2,"run*");
+for m% := 0 to numRunDirs%-1 do
+    runpath$ := experimentpath$ + runDirNames$[m%] + "\\";
+    FilePathSet(runpath$);
+    var penDirNames$[100];
+    var numPenDirs%;
+    var penpath$;
+    numPenDirs% := FileList(penDirNames$[],-2,"pen*");
+    
+    for n% := 0 to numPenDirs%-1 do
+        penpath$ := runpath$ + penDirNames$[n%] + "\\";
+        'For each penetration path, set up an identically named path in the merged data path:
+        var mergedDataPathRunPen$;
+        mergedDataPathRunPen$ := mergedDataPathRun$ + "pen_" + Mid$(penDirNames$[n%],7) + "\\";
+        ret% := FilePathSet(mergedDataPathRunPen$, 0, 1); 'Create new penetration directory, if necessary.
+        ret% := FilePathSet(penpath$); 'now go to the source penetration directory.
+        var siteDirNames$[100];
+        var numSiteDirs%;
+        var sitepath$;
+        numSiteDirs% := FileList(siteDirNames$[],-2,"site*");
+        
+        for p% := 0 to numSiteDirs%-1 do
+            sitepath$ := penpath$ + siteDirNames$[p%] + "\\";
+            'For each site path, set up an identically named path in the merged data path:
+            var mergedDataPathRunPenSite$;
+            mergedDataPathRunPenSite$ := mergedDataPathRunPen$ + "site_" + Mid$(siteDirNames$[p%],8) + "\\";
+            ret% := FilePathSet(mergedDataPathRunPenSite$, 0, 1); 'Create new site directory, if necessary.
+            FilePathSet(sitepath$);
+            var stimDirNames$[2000];
+            var numStimDirs%;
+            var stimpath$;
+            numStimDirs% := FileList(stimDirNames$[],-2,"stim*");
+            
+            for q% := 0 to numStimDirs%-1 do
+                stimpath$ := sitepath$ + stimDirNames$[q%] + "\\";
+                'For each stim path, set up an identically named path in the merged data path:
+                var mergedDataPathRunPenSiteStim$;
+                mergedDataPathRunPenSiteStim$ := mergedDataPathRunPenSite$ + stimDirNames$[q%] + "\\";
+                ret% := FilePathSet(mergedDataPathRunPenSiteStim$, 0, 1); 'Create new stim directory, if necessary.
+                FilePathSet(stimpath$);
+                'Now do the copying.
+                
+                var stimFileNames$[2000];
+                var numStimFiles%;
+                numStimFiles% := FileList(stimFileNames$[],0,"*stim*");
+                for r% := 0 to numStimFiles%-1 do
+                    var sourceFile$;
+                    var destinationFile$;
+                    sourceFile$ := stimpath$ + stimFileNames$[r%];
+                    destinationFile$ := mergedDataPathRunPenSiteStim$ + stimFileNames$[r%];
+                    ret% := FileCopy(sourceFile$, destinationFile$ , 0);
+                next;
+            next;
+        next;
+    next;
+next;
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            

@@ -1,0 +1,439 @@
+                                                                  
+#include "E:\Spike2_AnalysisScripts\Justin\48ch_include.s2s"
+
+'select the top-level "DATA" directory.
+
+'TODO: remove DC offset in both data channels. done.
+
+const LARGE% := 1000;
+const LARGER% := 5000;
+
+var channumber%;
+var actualWaveChans%[NWAVECHANS%];
+for channumber% := 1 to 29 do
+    actualWaveChans%[channumber%-1] := channumber%;
+next;
+for channumber% := 30 to 48 do
+    actualWaveChans%[channumber%-1] := channumber%+3;
+next;
+
+
+
+var dirNames$[LARGE%], sortdirs$[LARGE%], ssorts%[LARGE%];
+var numDirs%:=0, numDataf%:=0, numoldsorts%, currsortnum% := 0;
+var datafilepath$:="", sitepath$:="", catFname$:="", site$:="";
+var datafNames$[LARGE%], currsortdir$:="";
+var allStimNames$[200];
+var j%:=0,k%:=0, m%:=0, n%:=0, p%:=0, q%:=0, outputUs%:=20;
+var fh%:=0,dh%:=0;
+var runtime$:="", allsortspath$:="", sortpath$:="", now%[7];
+var maxT, textmarktime;
+var stimname$, counter%;
+var foo%[4];
+var datachans$ := "1, 2, 31";
+var NewStimChan%:=29, OldStimChan%:=30;
+var err%;
+var chlist%[8], TMtmp%[LARGER%];
+var spikechan%;
+var allchans%[100];
+var markchans%[100];
+
+'Variables for the batch concatenation.
+var runDirNames$[200];
+var penDirNames$[50];
+var siteDirNames$[200];
+var numRunDirs%;
+var numPenDirs%;
+var numSiteDirs%;
+var experimentpath$;
+var datapath$;
+var runpath$;
+var penpath$;
+var concatpath$;
+var concatsitepath$;    
+var smrfilename$; 
+
+
+var all48chans% := 1;
+
+
+
+
+if FilePathSet("") <> 0 then
+    halt; 'halt script if cancel button is pressed.
+endif
+
+
+
+'Variable declarations
+var writeStartTime;
+var digMarkTimes[1];
+var ret%;
+var memoffset:=0.00001, copyoffset:=1.000000;
+var temp%, temp2%;                
+var TimePerADC%;
+var TwoChannelBinsize;
+var mc%, mc2%, mc3%, mc4%;
+var firstIter%;
+var startTimeChan1;
+var startTimeChan2;
+var UsPerTime;
+
+var startTrial%, endTrial%;
+
+var allDatafNames$[10000];
+var allDatafTimeStamps$[10000];
+var Year$, Month$, Day$, Hour$, Minute$, Second$;
+var trialNum%[10000], trialNumStr$, blockNum%[10000], blockNumStr$, indSt%, indEnd%;
+var fileCount%;
+
+var subjectID$, runID$, penID$, siteID$;
+var subjectIDtemp$;
+var metadata$;
+
+var markerCodeRecTime%[4];
+ArrConst(markerCodeRecTime%, 0);
+var recordingStartTime, recordingEndTime;
+var meanValue;
+var dcRemovedVirtChanNum%;
+
+' setting up IIR filter
+IIRCreate(-1,1,0,2,250); '250Hz HP 2nd order butterworth filter
+var filtchan%;
+var chK%;
+
+var title$;
+var filtBlkSize;
+var maxFiltTime;
+var startFiltTime;
+var endFiltTime;
+var chunkFilt%;
+
+datapath$ := FilePath$();
+
+ret% := FileList(experimentpath$, -3); ' grab parent directory
+concatpath$ := experimentpath$ + "concat\\";
+concatsitepath$ := concatpath$;
+FilePathSet(concatsitepath$, 0, 1);
+FilePathSet(datapath$);
+
+var chkStimChan% := 1;
+
+numRunDirs% := FileList(runDirNames$[],-2,"run*");
+for m% := 0 to numRunDirs%-1 do
+    concatsitepath$ := concatpath$ + runDirNames$[m%] + "\\";
+    FilePathSet(concatsitepath$, 0, 1);
+    runpath$ := datapath$  + runDirNames$[m%] + "\\";
+    FilePathSet(runpath$);
+    
+    numPenDirs% := FileList(penDirNames$[],-2,"pen*");
+    for n% := 0 to numPenDirs%-1 do
+        concatsitepath$ := concatpath$ + runDirNames$[m%] + "\\" + penDirNames$[n%] + "\\";
+        FilePathSet(concatsitepath$, 0, 1);
+        penpath$ := runpath$ + penDirNames$[n%] + "\\";        
+        FilePathSet(penpath$);
+        
+        numSiteDirs% := FileList(siteDirNames$[],-2,"site*");
+        for p% := 0 to numSiteDirs%-1 do
+            concatsitepath$ := concatpath$ + runDirNames$[m%] + "\\" + penDirNames$[n%] + "\\" + siteDirNames$[p%] + "\\";
+            FilePathSet(concatsitepath$, 0, 1);  
+            sitepath$ := penpath$ + siteDirNames$[p%] + "\\";
+            FilePathSet(sitepath$);
+            
+            
+            'Get bird ID:
+            subjectIDtemp$ := Right$(Left$(datapath$,20),5);
+            runID$ := runDirNames$[m%];
+            penID$ := penDirNames$[n%];
+            siteID$ := siteDirNames$[p%];
+            
+            
+            
+            if m% = 0 and n% = 0 and p% = 0 then
+                subjectID$ := subjectIDtemp$;
+                DlgCreate("Confirm Bird ID");
+                DlgString(1, "Bird ID: ", 6);
+                DlgShow(subjectID$);
+            endif;
+            
+            
+            metadata$ :=  Print$("%s; %s; %s; %s", subjectID$, runID$, penID$, siteID$);
+            
+            
+            PrintLog("\n\n\nsite path is set to %s\n", sitepath$);
+            numDirs%:=FileList(dirNames$[],-2,"*stim*");
+            PrintLog("found %d stim directories\n", numDirs%);
+            
+            site$ := Left$(Right$(sitepath$, 13), 12);
+            if(instr(site$, "\\")) then
+                site$ := Right$(site$,11);
+            endif;
+            
+            if numDirs% > 0 then
+                
+                counter% := 0;
+                
+                'Cycle through all data directories
+                fileCount% := 0;
+                for i%:=1 to numDirs% do
+                    allStimNames$[i%-1] := Mid$(dirNames$[i%-1],6); 
+                    datafilepath$:=Print$("%s%s", sitepath$, dirNames$[i%-1]);
+                    FilePathSet(datafilepath$);
+                    numDataf%:=FileList(datafNames$[],0,"*-stim-*");
+                    
+                    for j%:=0 to numDataf%-1 do
+                        'PrintLog("%d is numDataf\n", numDataf%);
+                        'PrintLog("%d is j\n", j%);
+                        'PrintLog("FileCount = %d\n", fileCount%);
+                        allDatafNames$[fileCount%] := Print$("%s\\%s",datafilepath$, datafNames$[j%]);
+                        
+                        Year$ := Mid$(datafNames$[j%], 7,2);
+                        Month$ := Mid$(datafNames$[j%], 1,2);
+                        Day$ := Mid$(datafNames$[j%], 4,2);
+                        Hour$ := Mid$(datafNames$[j%], 10,2);
+                        Minute$ := Mid$(datafNames$[j%], 13,2);
+                        Second$ := Mid$(datafNames$[j%], 16,2);
+                        
+                        indSt% := InStr(datafNames$[j%],"block")+6; ' assume a max of 99 blocks
+                        indEnd% := InStr(datafNames$[j%],"-",indSt%);
+                        blockNumStr$ := Mid$(datafNames$[j%],indSt%,indEnd%-indSt%);
+                        blockNum%[fileCount%] := Val(blockNumStr$);
+                        
+                        indSt% := InStr(datafNames$[j%],"trial")+6; ' assume a max of 99 blocks
+                        indEnd% := InStr(datafNames$[j%],"-",indSt%);
+                        trialNumStr$ := Mid$(datafNames$[j%],indSt%,indEnd%-indSt%);
+                        trialNum%[fileCount%] := Val(trialNumStr$);
+                        
+                        
+                        allDatafTimeStamps$[fileCount%] := Print$("%s-%s-%s-%s-%s-%s", Year$, Month$, Day$, Hour$, Minute$, Second$);
+                        fileCount% := fileCount% + 1;
+                    next;
+                next;
+                
+                ArrSort(allDatafTimeStamps$[:fileCount%],0, allDatafNames$[:fileCount%]);
+                
+                startTrial% := 1;
+                endTrial% := fileCount%;
+                
+                FilePathSet(concatsitepath$); 
+                
+                'MAKE CAT FILE (all channels, all stims).
+                
+                'var skip% := 1;
+                catFname$:=Print$("concat_allChans.smr");
+                dh% := FileOpen(catFname$, 0, 0);
+                writeStartTime := 1.0;
+                if (dh%<0)	then
+                    PrintLog("Creating a new concat file named %s.\n", catFname$);
+                    firstIter% := 1;
+                    for i%:=startTrial%-1 to endTrial%-1 do
+                        fh% := FileOpen(allDatafNames$[i%],0);
+                        TimePerADC% := View(fh%).SampleTimePerAdc();
+                        UsPerTime := View(fh%).SampleUsPerTime();
+                        
+                        digMarkTimes[0] := 0;
+                        
+                        if(firstIter%=1) then 
+                        
+                            if(chkStimChan%=1) then
+                                var ok%, stimChan%;
+                                DlgCreate("Select stim channel");
+                                DlgChan(1,"Chan",1);
+                                ok% := DlgShow(stimChan%);
+                                if ok% < 1 then
+                                    PrintLog("Error selecting stim channel. Error is: %s", Error$(ok%))
+                                endif;
+                                chkStimChan%:=0;
+                            endif;
+                            
+                            
+                            dh%:=FileNew(7,0,UsPerTime,TimePerADC%,1,100,1); 'Create new BIG file with 100 channels
+                            if dh% < 0 then
+                                PrintLog("Error creating new file. Error is: %s", Error$(dh%));
+                            endif;
+                            
+                            
+                            
+                            firstIter% :=0;
+                            
+                            
+                            mc% := MemChan(8,99);'0,30); 'Create a memory channel for getting the textmark.
+                            mc2% := MemChan(8,100); 'Create a memory channel for storing the overall trial number
+                            mc3% := MemChan(8,500); 'Create a memory channel to store file metadata.
+                            temp% := MemSetItem(mc3%,0,memoffset+writeStartTime, foo%, metadata$);
+                            temp2% := View(dh%).MemSave(mc3%,54,8,1);
+                        
+                            mc4% := MemChan(5); 'Create a memory channel to store recstart and recstop times. 
+                                
+                        
+                        endif;
+                        View(fh%);ChanSave(-1,-1,dh%,0,View(fh%).Maxtime(), writeStartTime); 
+                        
+                        View(fh%);
+                        textmarktime := LastTime(30, 1, foo%, stimname$); 'Find the Stimulus name & onset of file
+                        textmarktime := LastTime(31, View(fh%).Maxtime()); 'Find the time of the stim onset
+                        'create a memory channel with the stimname as a textmark at 1 sec
+                        View(dh%);
+                    
+                        var markerCode%[4];
+                        ArrConst(markerCode%, 0);
+                    
+                        'TODO: This fails on the very last stimulus: Presumably becuase LastTime doesn't work when the time to search for is  off the end of the file.
+                        'Possible solutions: add in empty space after each stimulus, or set last time to one tick before (i.e. remove toe +0.1).
+                        recordingEndTime := LastTime(18, View(dh%).MaxTime(6)+0.1);
+                        markerCodeRecTime%[0] := 2;
+                        MemSetItem(mc4%, 0, recordingEndTime, markerCodeRecTime%);
+                        
+                        
+                        recordingStartTime := NextTime(18, writeStartTime-0.1);
+                        markerCodeRecTime%[0] := 1;
+                        MemSetItem(mc4%, 0, recordingStartTime, markerCodeRecTime%);
+                        temp2% := View(dh%).MemSave(mc4%,55,5,1);  
+                    
+                        'write the stimname at the onset of the stimulus.                                                                                                               
+                        temp% := MemSetItem(mc%,0,memoffset+writeStartTime+textmarktime, markerCode%, stimname$);
+                        temp2% := View(dh%).MemSave(mc%,52,8,1);
+                        
+                        'Added the timestamp from each filename here. JMJ 10/13/10.
+                            
+                        smrfilename$ := View(fh%).FileName$(3) + View(fh%).FileName$(4) + View(fh%).FileName$(5);
+                        temp% := MemSetItem(mc2%,0,memoffset+writeStartTime, foo%, Print$("%d: %s", i%+1, smrfilename$));
+                        temp2% := View(dh%).MemSave(mc2%,53,8,1);
+                        
+                        View(dh%);
+                        
+                        ' filter each wave channel
+                        var list%[100],nCh%;
+                        nCh% := ChanList(list%,513);
+                        for q% := 1 to nCh% do  ' OK, here we do the actual IIR filter & resamp on everything
+                                
+                            chK% := ChanKind(list%[q%]);
+  
+                            startFiltTime := writeStartTime;
+                            endFiltTime := View(dh%).MaxTime(list%[q%]);
+                                                      
+                            if (chK%=9 or chK%=1) and list%[q%]<>stimChan% then
+                                title$ := ChanTitle$(list%[q%]);
+                                
+                                PrintLog("Filtering Ch%i from %0.1f to %0.1f \n", list%[q%],startFiltTime,endFiltTime);
+                                filtchan% := IIRApply(-1,100,list%[q%],startFiltTime,endFiltTime);
+                                if filtchan% < 0 then
+                                    PrintLog("Error applying IIR Filter. Error is: %s ", Error$(filtchan%));
+                                endif;
+                                ChanSave(filtchan%,list%[q%],0,startFiltTime,endFiltTime);
+                                ChanTitle$(filtchan%,title$);
+                                ChanDelete(filtchan%);
+                                
+                                
+                            endif;
+                        next;
+                        
+                        writeStartTime := writeStartTime + View(fh%).MaxTime() + 1.0;   'Is this the same max time for every channel?
+                            
+                            
+                        View(fh%);FileClose(0,-1);
+                        View(dh%).FileSaveAs(catFname$, -1,1,"");                        
+                        
+                    next;
+                    
+'                    View(dh%);
+'                    ' filter each wave channel
+'                    var list%[100],nCh%;
+'                    nCh% := ChanList(list%,513);
+'                    for q% := 1 to nCh% do  ' OK, here we do the actual IIR filter & resamp on everything
+'                            
+'                        chK% := ChanKind(list%[q%]);
+'                        
+'
+'                        filtBlkSize := 5000.0;
+'                        maxFiltTime := View(dh%).MaxTime();
+'                        startFiltTime := 0;
+'                        markerCodeRecTime%[0] := 2; 'going to be looking for the end of the next trial
+'                        chunkFilt% := 0;
+'                        
+'                        if maxFiltTime < filtBlkSize then
+'                            endFiltTime := maxFiltTime;
+'                        else
+'                            endFiltTime := filtBlkSize;
+'                            endFiltTime := NextTime(55,endFiltTime,markerCodeRecTime%)+0.1; ' round up to just past the end of the next stim
+'                            chunkFilt% := 1;
+'                        endif
+'                        
+'                        if (chK%=9 or chK%=1) and list%[q%]<>stimChan% then
+'                            title$ := ChanTitle$(list%[q%]);
+'                            
+'                            PrintLog("Filtering %s in %0.1f sec blocks \n", title$, filtBlkSize);
+'                            
+'                            while chunkFilt% > 0 do
+'                                
+'                                PrintLog("Filtering from %0.1f to %0.1f \n", startFiltTime,endFiltTime);
+'                                filtchan% := IIRApply(-1,100,list%[q%],startFiltTime,endFiltTime);
+'                                if filtchan% < 0 then
+'                                    PrintLog("Error applying IIR Filter. Error is: %s ", Error$(filtchan%));
+'                                endif;
+'                                'ChanSave(filtchan%,list%[q%],0,1);
+'                                ChanTitle$(filtchan%,title$);
+'                                'ChanDelete(filtchan%);
+'                                
+'                                startFiltTime := endFiltTime;
+'                                endFiltTime := endFiltTime + filtBlkSize;
+'                                
+'                                if maxFiltTime < endFiltTime then
+'                                    endFiltTime := maxFiltTime;
+'                                    chunkFilt% := 0;
+'                                else
+'                                    endFiltTime := NextTime(55,endFiltTime,markerCodeRecTime%)+0.1; ' round up to just past the end of the next stim
+'                                endif
+'                                
+'                            wend;
+'                            
+'                            PrintLog("Filtering from %0.1f to %0.1f \n", startFiltTime,endFiltTime);
+'                            filtchan% := IIRApply(-1,100,list%[q%],startFiltTime,endFiltTime);
+'                            if filtchan% < 0 then
+'                                PrintLog("Error applying IIR Filter. Error is: %s", Error$(filtchan%));
+'                            endif;
+'                            ChanSave(filtchan%,list%[q%],0);
+'                            ChanTitle$(list%[q%],title$);
+'                            ChanDelete(filtchan%);
+'                        endif;
+'                    next;
+                    
+                    'ChanSave(-1,-1,dh%,0,View(dh%).Maxtime(), writeStartTime); 
+                    
+                    View(dh%).ChanDelete(mc%);
+                    View(dh%).ChanDelete(mc2%);
+                    View(dh%).ChanDelete(mc3%);
+                    View(dh%).ChanDelete(30);
+                    View(dh%).ChanDelete(31);
+                    View(dh%).ChanDelete(32);
+                    View(dh%).ChanTitle$(52, "Stimulus");
+                    View(dh%).ChanTitle$(53, "StimNum");
+                    View(dh%).ChanTitle$(54, "Metadata");
+                    View(dh%).ChanTitle$(55, "RecTimes");
+                    View(dh%).DrawMode(stimChan%, 9);
+                    View(dh%).DrawMode(52,14);
+                    View(dh%).DrawMode(53,14);
+                    View(dh%).DrawMode(54,14);
+                    
+                    'make sure you draw the waveforms as waveforms and not spectrograms (this speeds things up)
+                    View(dh%).DrawMode(2,3,0);
+                    View(dh%).DrawMode(29,14,-1);
+                    
+                    View(dh%).ChanShow(-1);
+                    View(dh%).Draw(0,MaxTime());
+                    View(dh%).Optimise(-1);
+                    View(dh%).WindowVisible(0); 'Display concat file
+                    
+                    View(dh%);
+                    FileSaveAs(catFname$, -1,1,"");
+                    FileClose(0,-1);       
+                endif;       
+                
+            
+
+            endif;
+        next;
+    next;
+next;
+
+FilePathSet("C:\\");

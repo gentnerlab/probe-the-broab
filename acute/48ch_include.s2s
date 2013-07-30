@@ -1,0 +1,232 @@
+
+
+var mapProbeToAmp32%[33];
+var mapAmpToProbe32%[33];
+
+mapProbeToAmp32%[1] := 11;
+mapProbeToAmp32%[2] := 9;
+mapProbeToAmp32%[3] := 7;
+mapProbeToAmp32%[4] := 5;
+mapProbeToAmp32%[5] := 1;
+mapProbeToAmp32%[6] := 3;
+mapProbeToAmp32%[7] := 4;
+mapProbeToAmp32%[8] := 2;
+mapProbeToAmp32%[9] := 13;
+mapProbeToAmp32%[10] := 6;
+mapProbeToAmp32%[11] := 14;
+mapProbeToAmp32%[12] := 8;
+mapProbeToAmp32%[13] := 15;
+mapProbeToAmp32%[14] := 10;
+mapProbeToAmp32%[15] := 16;
+mapProbeToAmp32%[16] := 12;
+mapProbeToAmp32%[17] := 32;
+mapProbeToAmp32%[18] := 30;
+mapProbeToAmp32%[19] := 31;
+mapProbeToAmp32%[20] := 28;
+mapProbeToAmp32%[21] := 26;
+mapProbeToAmp32%[22] := 29;
+mapProbeToAmp32%[23] := 24;
+mapProbeToAmp32%[24] := 27;
+mapProbeToAmp32%[25] := 20;
+mapProbeToAmp32%[26] := 25;
+mapProbeToAmp32%[27] := 19;
+mapProbeToAmp32%[28] := 22;
+mapProbeToAmp32%[29] := 18;
+mapProbeToAmp32%[30] := 23;
+mapProbeToAmp32%[31] := 17;
+mapProbeToAmp32%[32] := 21;
+
+
+mapAmpToProbe32%[11] := 1;
+mapAmpToProbe32%[9] := 2;
+mapAmpToProbe32%[7] := 3;
+mapAmpToProbe32%[5] := 4;
+mapAmpToProbe32%[1] := 5;
+mapAmpToProbe32%[3] := 6;
+mapAmpToProbe32%[4] := 7;
+mapAmpToProbe32%[2] := 8;
+mapAmpToProbe32%[13] := 9;
+mapAmpToProbe32%[6] := 10;
+mapAmpToProbe32%[14] := 11;
+mapAmpToProbe32%[8] := 12;
+mapAmpToProbe32%[15] := 13;
+mapAmpToProbe32%[10] := 14;
+mapAmpToProbe32%[16] := 15;
+mapAmpToProbe32%[12] := 16;
+mapAmpToProbe32%[32] := 17;
+mapAmpToProbe32%[30] := 18;
+mapAmpToProbe32%[31] := 19;
+mapAmpToProbe32%[28] := 20;
+mapAmpToProbe32%[26] := 21;
+mapAmpToProbe32%[29] := 22;
+mapAmpToProbe32%[24] := 23;
+mapAmpToProbe32%[27] := 24;
+mapAmpToProbe32%[20] := 25;
+mapAmpToProbe32%[25] := 26;
+mapAmpToProbe32%[19] := 27;
+mapAmpToProbe32%[22] := 28;
+mapAmpToProbe32%[18] := 29;
+mapAmpToProbe32%[23] := 30;
+mapAmpToProbe32%[17] := 31;
+mapAmpToProbe32%[21] := 32;
+
+const NWAVECHANS% := 48;
+var i%;
+
+var chanmap1x16and4x8%[NWAVECHANS%];
+chanmap1x16and4x8%[0]:=6;
+chanmap1x16and4x8%[1]:=11;
+chanmap1x16and4x8%[2]:=3;
+chanmap1x16and4x8%[3]:=14;
+chanmap1x16and4x8%[4]:=1;
+chanmap1x16and4x8%[5]:=16;
+chanmap1x16and4x8%[6]:=2;
+chanmap1x16and4x8%[7]:=15;
+chanmap1x16and4x8%[8]:=5;
+chanmap1x16and4x8%[9]:=12;
+chanmap1x16and4x8%[10]:=4;
+chanmap1x16and4x8%[11]:=13;
+chanmap1x16and4x8%[12]:=7;
+chanmap1x16and4x8%[13]:=10;
+chanmap1x16and4x8%[14]:=8;
+chanmap1x16and4x8%[15]:=9;
+chanmap1x16and4x8%[16]:=mapAmpToProbe32%[1];      'Lower left when facing probe pads, bottom to top
+chanmap1x16and4x8%[17]:=mapAmpToProbe32%[8];
+chanmap1x16and4x8%[18]:=mapAmpToProbe32%[2];
+chanmap1x16and4x8%[19]:=mapAmpToProbe32%[7];
+chanmap1x16and4x8%[20]:=mapAmpToProbe32%[3];
+chanmap1x16and4x8%[21]:=mapAmpToProbe32%[6];
+chanmap1x16and4x8%[22]:=mapAmpToProbe32%[4];
+chanmap1x16and4x8%[23]:=mapAmpToProbe32%[5];
+chanmap1x16and4x8%[24]:=mapAmpToProbe32%[9];       'Second shaft from left when facing probe pads, bottom to top
+chanmap1x16and4x8%[25]:=mapAmpToProbe32%[16];                 
+chanmap1x16and4x8%[26]:=mapAmpToProbe32%[10];
+chanmap1x16and4x8%[27]:=mapAmpToProbe32%[15];
+chanmap1x16and4x8%[28]:=mapAmpToProbe32%[11];
+chanmap1x16and4x8%[29]:=mapAmpToProbe32%[14];
+chanmap1x16and4x8%[30]:=mapAmpToProbe32%[12];
+chanmap1x16and4x8%[31]:=mapAmpToProbe32%[13];
+chanmap1x16and4x8%[32]:=mapAmpToProbe32%[17];    'Second shaft from right (third from left) when facing probe pads, bottom to top
+chanmap1x16and4x8%[33]:=mapAmpToProbe32%[24];
+chanmap1x16and4x8%[34]:=mapAmpToProbe32%[18];
+chanmap1x16and4x8%[35]:=mapAmpToProbe32%[23];
+chanmap1x16and4x8%[36]:=mapAmpToProbe32%[19];
+chanmap1x16and4x8%[37]:=mapAmpToProbe32%[22];
+chanmap1x16and4x8%[38]:=mapAmpToProbe32%[20];
+chanmap1x16and4x8%[39]:=mapAmpToProbe32%[21];
+chanmap1x16and4x8%[40]:=mapAmpToProbe32%[25];    'Farthest right shaft when facing probe pads, bottom to top
+chanmap1x16and4x8%[41]:=mapAmpToProbe32%[32];
+chanmap1x16and4x8%[42]:=mapAmpToProbe32%[26];
+chanmap1x16and4x8%[43]:=mapAmpToProbe32%[31];
+chanmap1x16and4x8%[44]:=mapAmpToProbe32%[27];
+chanmap1x16and4x8%[45]:=mapAmpToProbe32%[30];
+chanmap1x16and4x8%[46]:=mapAmpToProbe32%[28];
+chanmap1x16and4x8%[47]:=mapAmpToProbe32%[29];
+
+for i% := 16 to 47 do
+    chanmap1x16and4x8%[i%] := chanmap1x16and4x8%[i%] + 16;
+next;
+
+
+var chanmap1x16and1x32%[NWAVECHANS%];
+chanmap1x16and1x32%[0]:=6;
+chanmap1x16and1x32%[1]:=11;
+chanmap1x16and1x32%[2]:=3;
+chanmap1x16and1x32%[3]:=14;
+chanmap1x16and1x32%[4]:=1;
+chanmap1x16and1x32%[5]:=16;
+chanmap1x16and1x32%[6]:=2;
+chanmap1x16and1x32%[7]:=15;
+chanmap1x16and1x32%[8]:=5;
+chanmap1x16and1x32%[9]:=12;
+chanmap1x16and1x32%[10]:=4;
+chanmap1x16and1x32%[11]:=13;
+chanmap1x16and1x32%[12]:=7;
+chanmap1x16and1x32%[13]:=10;
+chanmap1x16and1x32%[14]:=8;
+chanmap1x16and1x32%[15]:=9;
+chanmap1x16and1x32%[16]:=1;      '32 channel probe starts here.
+chanmap1x16and1x32%[17]:=32;
+chanmap1x16and1x32%[18]:=2;
+chanmap1x16and1x32%[19]:=31;
+chanmap1x16and1x32%[20]:=3;
+chanmap1x16and1x32%[21]:=30;
+chanmap1x16and1x32%[22]:=4;
+chanmap1x16and1x32%[23]:=29;
+chanmap1x16and1x32%[24]:=5;       
+chanmap1x16and1x32%[25]:=28;                 
+chanmap1x16and1x32%[26]:=6;
+chanmap1x16and1x32%[27]:=27;
+chanmap1x16and1x32%[28]:=7;
+chanmap1x16and1x32%[29]:=26;
+chanmap1x16and1x32%[30]:=8;
+chanmap1x16and1x32%[31]:=25;
+chanmap1x16and1x32%[32]:=9;   
+chanmap1x16and1x32%[33]:=24;
+chanmap1x16and1x32%[34]:=10;
+chanmap1x16and1x32%[35]:=23;
+chanmap1x16and1x32%[36]:=11;
+chanmap1x16and1x32%[37]:=22;
+chanmap1x16and1x32%[38]:=12;
+chanmap1x16and1x32%[39]:=21;
+chanmap1x16and1x32%[40]:=13;   
+chanmap1x16and1x32%[41]:=20;
+chanmap1x16and1x32%[42]:=14;
+chanmap1x16and1x32%[43]:=19;
+chanmap1x16and1x32%[44]:=15;
+chanmap1x16and1x32%[45]:=18;
+chanmap1x16and1x32%[46]:=16;
+chanmap1x16and1x32%[47]:=17;
+
+for i% := 16 to 47 do
+    chanmap1x16and1x32%[i%] := chanmap1x16and1x32%[i%] + 16;
+next;
+
+
+
+
+
+
+
+
+
+
+
+
+'mapAmpToProbe32%[1] := 1;
+'mapAmpToProbe32%[2] := 2;
+'mapAmpToProbe32%[3] := 3;
+'mapAmpToProbe32%[4] := 4;
+'mapAmpToProbe32%[5] := 5;
+'mapAmpToProbe32%[6] := 6;
+'mapAmpToProbe32%[7] := 7;
+'mapAmpToProbe32%[8] := 8;
+'mapAmpToProbe32%[9] := 9;
+'mapAmpToProbe32%[10] := 10;
+'mapAmpToProbe32%[11] := 11;
+'mapAmpToProbe32%[12] := 12;
+'mapAmpToProbe32%[13] := 13;
+'mapAmpToProbe32%[14] := 14;
+'mapAmpToProbe32%[15] := 15;
+'mapAmpToProbe32%[16] := 16;
+'mapAmpToProbe32%[17] := 17;
+'mapAmpToProbe32%[18] := 18;
+'mapAmpToProbe32%[19] := 19;
+'mapAmpToProbe32%[20] := 20;
+'mapAmpToProbe32%[21] := 21;
+'mapAmpToProbe32%[22] := 22;
+'mapAmpToProbe32%[23] := 23;
+'mapAmpToProbe32%[24] := 24;
+'mapAmpToProbe32%[25] := 25;
+'mapAmpToProbe32%[26] := 26;
+'mapAmpToProbe32%[27] := 27;
+'mapAmpToProbe32%[28] := 28;
+'mapAmpToProbe32%[29] := 29;
+'mapAmpToProbe32%[30] := 30;
+'mapAmpToProbe32%[31] := 31;
+'mapAmpToProbe32%[32] := 32;
+
+
+
+
+

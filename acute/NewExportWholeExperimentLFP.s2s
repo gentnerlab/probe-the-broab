@@ -1,0 +1,256 @@
+#include "E:\justin\Spike2_AnalysisScripts\48ch_include.s2s"
+
+'This script exports the data for a given experiment.
+'select the top-.
+
+
+
+const LARGE% := 1000;
+const LARGER% := 10000;
+
+var channumber%;
+var actualWaveChans%[NWAVECHANS%];
+for channumber% := 1 to 29 do
+    actualWaveChans%[channumber%-1] := channumber%;
+next;
+for channumber% := 30 to 48 do
+    actualWaveChans%[channumber%-1] := channumber%+3;
+next;
+
+
+
+var dirNames$[LARGE%], sortdirs$[LARGE%], ssorts%[LARGE%];
+var numDirs%:=0, numDataf%:=0, numoldsorts%, currsortnum% := 0;
+var datafilepath$:="", sitepath$:="", catFname$:="", site$:="";
+var datafNames$[LARGER%], currsortdir$:="";
+var allStimNames$[200];
+var j%:=0,k%:=0, m%:=0, n%:=0, p%:=0, q%:=0, outputUs%:=20;
+var tr%:=0;
+var fh%:=0,dh%:=0;
+var runtime$:="", allsortspath$:="", sortpath$:="", now%[7];
+var maxT, textmarktime;
+var stimname$, counter%;
+var foo%[4];
+var datachans$ := "1, 2, 31";
+var NewStimChan%:=29, OldStimChan%:=30;
+var err%;
+var chlist%[8], TMtmp%[LARGER%];
+var spikechan%;
+var allchans%[100];
+var markchans%[100];
+
+'Variables for the batch concatenation.
+var runDirNames$[200];
+var penDirNames$[50];
+var siteDirNames$[200];
+var numRunDirs%;
+var numPenDirs%;
+var numSiteDirs%;
+var experimentpath$;
+var datapath$;
+var runpath$;
+var penpath$;
+var lfppath$;
+
+
+
+
+
+
+if FilePathSet("") <> 0 then
+    halt; 'halt script if cancel button is pressed.
+endif
+
+
+
+'Variable declarations
+var writeStartTime;
+var digMarkTimes[1];
+var ret%;
+var memoffset:=0.00001, copyoffset:=1.000000;
+var temp%, temp2%;                
+var TimePerADC%;
+var mc%, mc2%, mc3%;
+var firstIter%;
+var UsPerTime;
+
+var startTrial%, endTrial%;
+
+var allDatafNames$[10000];
+var allDatafNamesPath$[10000];
+var allDatafTimeStamps$[10000];
+var Year$, Month$, Day$, Hour$, Minute$, Second$;
+var fileCount%;
+
+var subjectID$, runID$, penID$, siteID$;
+var metadata$;
+
+var LFPcutoff% := 250;
+var LFPrate% := 1000;
+var chK%;
+chK% := IIRCreate(-1,0,0,2,LFPcutoff%); 'LFP 2nd order butterworth filter
+
+datapath$ := FilePath$();
+
+ret% := FileList(experimentpath$, -3); ' grab parent directory
+lfppath$ := experimentpath$ + "lfp\\";
+var lfpsitepath$ := lfppath$;
+FilePathSet(lfpsitepath$, 0, 1);
+FilePathSet(datapath$);
+
+numRunDirs% := FileList(runDirNames$[],-2,"run*");
+for m% := 0 to numRunDirs%-1 do
+    runpath$ := datapath$  + runDirNames$[m%] + "\\";
+    FilePathSet(runpath$);
+    numPenDirs% := FileList(penDirNames$[],-2,"pen*");
+    for n% := 0 to numPenDirs%-1 do
+        lfpsitepath$ := lfppath$ + penDirNames$[n%] + "\\";
+        FilePathSet(lfpsitepath$, 0, 1);
+        penpath$ := runpath$ + penDirNames$[n%] + "\\";
+        FilePathSet(penpath$);
+        numSiteDirs% := FileList(siteDirNames$[],-2,"site*");
+        for p% := 0 to numSiteDirs%-1 do
+            lfpsitepath$ := lfppath$ + penDirNames$[n%] + "\\" + siteDirNames$[p%] + "\\";
+            FilePathSet(lfpsitepath$, 0, 1); 
+            sitepath$ := penpath$ + siteDirNames$[p%] + "\\";
+            FilePathSet(sitepath$);
+            
+            
+            'Get bird ID:
+            subjectID$ := Left$(Right$(datapath$,11),5);
+            runID$ := runDirNames$[m%];
+            penID$ := penDirNames$[n%];
+            siteID$ := siteDirNames$[p%];
+            
+            metadata$ :=  Print$("%s; %s; %s; %s", subjectID$, runID$, penID$, siteID$);
+            
+            PrintLog("\n\n\nsite path is set to %s\n", sitepath$);
+            
+            site$ := Left$(Right$(sitepath$, 13), 12);
+            if(instr(site$, "\\")) then
+                site$ := Right$(site$,11);
+            endif;
+            
+            numDataf%:=FileList(datafNames$[],0,"*-stim-*.smr");
+            
+            
+            var LFPchan%;
+            var sampRate%;
+            var go%;
+            var pts%;
+            var list%;
+            var tempLFPname$;
+            var matLFPname$;
+            var stimStart%;
+            for tr%:=0 to numDataf%-1 do
+                ret% := FilePathSet(lfpsitepath$); 'Make the new directory if it does not exist.
+                PrintLog("lfp site path is set to %s\n", lfpsitepath$);
+                
+'                ' if the destination lfp file exists, then skip it 
+'                if FileOpen(datafNames$[tr%],0) then 
+'                    FileClose(-1,-1);
+'                    continue;
+'                endif;
+                
+                'copy source                     
+                tempLFPname$ :=  Print$("%s-%s","temp",datafNames$[tr%]);
+                allDatafNamesPath$[tr%] :=  Print$("%s\%s",sitepath$,datafNames$[tr%]);
+                FileCopy(allDatafNamesPath$[tr%],tempLFPname$,1);
+                
+                'open the source file
+                fh% := FileOpen(tempLFPname$,0);
+                if fh% < 0 then
+                    PrintLog("Error opening temp file %s. Error is: %s\n",tempLFPname$, Error$(dh%));
+                endif;
+                TimePerADC% := View(fh%).SampleTimePerAdc();
+                'UsPerTime := View(fh%).SampleUsPerTime();
+                UsPerTime := LFPrate%; ' In order to downsample output to 1000Hz; 
+                                
+                
+                textmarktime := LastTime(30, Maxtime(30) + 1, foo%, stimname$); 'Find the Stimulus name.
+                stimStart% := NextTime(32, -1); 'Find the Stimulus name.
+                
+                
+                
+
+                ' make destination file of same name in lfp directory
+                dh%:=FileNew(7,0,UsPerTime,TimePerADC%,1,100); 'Create new file with 100 channels
+                if dh% < 0 then
+                    PrintLog("Error creating new file. Error is: %s\n", Error$(dh%));
+                endif;
+                
+                View(dh%);                    
+                mc% := MemChan(8,99);'0,30); 'Create a memory channel for getting the textmark.
+                temp% := MemSetItem(mc%,0,memoffset+stimStart%, foo%, stimname$);
+                temp2% := View(dh%).MemSave(mc%,52,8,1); 
+                View(dh%).ChanTitle$(52, "Stimulus");                   
+                
+                mc2% := MemChan(8,5); 'Create a memory channel for storing the overall trial number
+                temp% := MemSetItem(mc2%,0,memoffset+stimStart%, foo%, Print$("%d", i%+1));
+                temp2% := View(dh%).MemSave(mc2%,53,8,1); 
+                View(dh%).ChanTitle$(53, "StimNum");                     
+                
+                mc3% := MemChan(8,500); 'Create a memory channel to store file metadata.
+                temp% := MemSetItem(mc3%,0,memoffset, foo%, metadata$);
+                temp2% := View(dh%).MemSave(mc3%,54,8,1);
+                View(dh%).ChanTitle$(54, "MetaData");
+                
+                
+                View(fh%);  'switch back to the source file
+                for q% := 0 to 47 do  ' OK, here we do the actual IIR filter & resamp on everything
+                        
+                    chK% := ChanKind(actualWaveChans%[q%]);
+                    
+                    if chK% = 1 then
+                        LFPchan% := MemChan(0,actualWaveChans%[q%]);
+                        LFPchan% := IIRApply(-1,LFPchan%,actualWaveChans%[q%],0.0,View(fh%).MaxTime());   ' apply the filter, returns memchan number                             
+                        pts% := MemSave(LFPchan%,actualWaveChans%[q%],0,1);                           ' save the memchan to temp disk chan
+                        
+                        ChanDelete(LFPchan%);                
+                        sampRate% := pts% / View(fh%).MaxTime(); 'get sampling rate   
+                        ChanProcessAdd(actualWaveChans%[q%],5,floor(sampRate%/LFPrate%));     ' downsample and interpolate to the new rate
+                        ChanSave(actualWaveChans%[q%],q%+1,dh%);
+                    endif;
+                    
+                next;
+                
+                View(dh%);
+                View(dh%).ChanDelete(mc%);
+                View(dh%).ChanDelete(mc2%);
+                View(dh%).ChanDelete(mc3%); 
+                View(dh%).DrawMode(52,14);
+                View(dh%).DrawMode(53,14);
+                View(dh%).DrawMode(54,14);
+
+            
+                'make sure you draw the waveforms as waveforms and not spectrograms (this speeds things up)
+            
+                View(dh%).ChanShow(-1);
+                View(dh%).Draw(0,MaxTime());
+                View(dh%).Optimise(-1);
+                View(dh%).WindowVisible(0); 'Display concat file
+                View(fh%);FileClose(0,-1);
+                
+                View(dh%);
+                FileSaveAs(datafNames$[tr%], -1,1,"");
+                
+                matLFPname$ := Print$("%s.%s",Left$(datafNames$[tr%],Len(datafNames$[tr%])-4),"mat");
+                ExportChanList(0,View(dh%).MaxTime(),-1);
+                chK% := FileSaveAs(matLFPname$,100,1,"",0,"UseSName=0|UseCName=1");
+                
+                
+                View(dh%);FileClose(0,-1);
+                
+                FileClose(-1,-1);
+                FileDelete(tempLFPname$);
+            next;
+                
+   
+
+        next;
+    next;
+next;
+
+FilePathSet("C:\\");
+
+
