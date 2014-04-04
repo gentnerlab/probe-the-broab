@@ -1,0 +1,92 @@
+'ApplyFilterToMultipleChannels.s2s
+'filters all selected channels
+#include <chron_include.s2s>
+'Startup log file
+PrintLog("\n\n\n********************\n************************************************************\n********************\n\n");
+PL(Print$("%s.s2s started\n",View(App(3)).FileName$(3)+View(App(3)).FileName$(4)));
+
+seconds(0);
+
+var datahandle%;
+datahandle%:=PickAnOpenWindow();
+if datahandle% < 0 then
+    Message("No data windows open - halting!");
+    PrintLog("No data windows open - halting!");
+    halt;
+endif
+
+View(datahandle%);
+'
+var channelsToFilter%[500];
+ChanList(channelsToFilter%[],65536); 'picks all selected channels
+'
+var whichFilter%;
+'Create Filter Here
+DlgCreate("Select Filter Type",45,15);
+DlgList(1,"Select Filter Type","HighPass(309Hz)|BandPass(250Hz-7000Hz)");
+DlgShow(whichFilter%);
+'
+docase
+case whichFilter% = 1 then
+	FiltCreate(-1, 3, 246, 309); 'FIR High pass
+case whichFilter% = 2 then
+	FiltCreate(-1, 4, 63, 250, 7000); 'FIR Band pass
+else
+	FiltCreate(-1, 3, 246, 309); 'FIR High pass
+endcase;
+'
+'Ask if want to limit time of filtering here
+var tempString$,newChan%,kind%,mTime,chanNum%;
+for chanNum% := 1 to channelsToFilter%[0] do
+    var currChanKind%;
+    var doCopyVirtToMem% := 1; 'more than twice as fast to copy a virtual chan to a mem chan first and then filter than to just filter it as a virtual chan
+    var chanToFilt%;
+    
+    currChanKind% := ChanKind(channelsToFilter%[chanNum%]);
+    if currChanKind% = 9 then
+        mTime := LastTime(channelsToFilter%[chanNum%],99999); 'hack because MaxTime does not work on Virtual Channels
+    else
+        mTime := MaxTime(channelsToFilter%[chanNum%])
+    endif
+    
+    
+    if doCopyVirtToMem% = 1 and currChanKind% = 9 then 'switch between (copying virtual chan to a memory chan and then filtering) or (filtering as Virtual chan)
+        chanToFilt% := CopyWavetoMem%(channelsToFilter%[chanNum%]);
+    else 'filter all Channels as they are
+        chanToFilt% := channelsToFilter%[chanNum%];
+    endif
+    
+    newChan%:=FiltApply(-1, 0, chanToFilt%, 0.0, mTime, 1); 'Apply created FIR filter  
+    
+	if newChan% <0 then
+		PrintLog("error:%s\nCould not filter channel %d\n",Error$(newChan%),channelsToFilter%[chanNum%]);
+	else
+        PrintLog("successfully filtered Channel %d. Filtered Version is Channel %d\n",channelsToFilter%[chanNum%],newChan%);
+        ChanShow(newChan%);	
+        tempString$:=ChanTitle$(channelsToFilter%[chanNum%]);
+        if ChanKind(channelsToFilter%[chanNum%]) = 9 then
+            ChanTitle$(newChan%,Print$("C%dFil",channelsToFilter%[chanNum%]));
+        else
+            ChanTitle$(newChan%,Print$("C%dP%sFil",channelsToFilter%[chanNum%],Right$(tempString$,2)));
+        endif
+        Draw();
+        Yield(0.5);
+    endif
+next
+'
+
+func CopyWavetoMem%(chan%) 'From Help: MemChan()
+var mc%;
+mc% := MemChan(0, chan%);                'Create waveform channel
+if mc%>0 then                            'Created OK?
+    ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+    MemImport(mc%, chan%, 0, mTime);  'Copy data - mTime is a hack - see above
+    'ChanShow(mc%);                        'display new channel
+endif;
+return mc%; 'Return the new memory channel number
+end;
+'
+
+PrintLog("Seconds: %f",Seconds());
+PL(Print$("%s.s2s Ending\n",View(App(3)).FileName$(3)+View(App(3)).FileName$(4)));
+PrintLog("\n********************\n************************************************************\n********************\n\n");

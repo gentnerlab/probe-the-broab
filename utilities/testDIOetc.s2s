@@ -1,0 +1,230 @@
+'clear the log window
+View(LogHandle()).EditSelectAll();
+View(LogHandle()).EditClear();
+'done clearing log window
+      
+PL("'testscript' Script Started");
+
+view(App()).Window(0,0,100,100,0,1);
+
+'*******set up path variables
+const seqfile$ := "D:\\S2scripts\\danS2scripts\\seqtestoutputs.pls"; '<EDIT ME IF YOU WANT ME TO WORK!>
+
+'set up constants
+const maxStims%             := 1000;     
+const stimExt$              := ".wav";
+const maxPlaylistLength%    := 10;
+const maxstimKB%            := 1500;    'the 1401 should be able to hold a 1750KB stimulus max (this can't be changed) we set this at 1500 to be safe
+const longstimrate%         := 44100;   'if you use files longer than 1500 KB they must have a 44.1 kHz sample rate for accurate playback 
+const stimKey$              := "a";
+const trialTrigKey$         := "S";
+const samplingTrigKey$      := "g";
+const chunksize%            := 4069;
+
+const samplingRate%         := 25000;
+
+const NWAVECHANS%           := 16;
+const maxChans%             := 100;
+
+const maxTrials%            := 10000;
+
+
+'***set IDs for toolbar buttons
+const HANDLERID%            := 0;
+const FINISHEXPID%	        := 1;
+const INITRECID%		    := 3;
+const STOPRECID% 	        := 4;
+
+'***
+
+
+
+'********
+'
+'********set up other variables
+
+'info stuff and misc
+
+
+
+'displaystuff
+var handledata%;
+
+
+'blockstuff
+
+
+'searchstuff
+
+
+'stimstuff
+
+
+
+'handlerstuff
+
+
+'********
+'
+'********set up flag variables for handler, I'll denote with a prefixed 'q' and wikicaps
+
+'********
+'
+'********describe chanmaps, 
+var trodeType%; 'set below, in future to be selected in a dialogue box
+var chanmap1x16%[NWAVECHANS%];
+chanmap1x16%[0]:=6;
+chanmap1x16%[1]:=11;
+chanmap1x16%[2]:=3;
+chanmap1x16%[3]:=14;
+chanmap1x16%[4]:=1;
+chanmap1x16%[5]:=16;
+chanmap1x16%[6]:=2;
+chanmap1x16%[7]:=15;
+chanmap1x16%[8]:=5;
+chanmap1x16%[9]:=12;
+chanmap1x16%[10]:=4;
+chanmap1x16%[11]:=13;
+chanmap1x16%[12]:=7;
+chanmap1x16%[13]:=10;
+chanmap1x16%[14]:=8;
+chanmap1x16%[15]:=9;
+var chanmap2x2tet%[NWAVECHANS%];
+chanmap2x2tet%[0]:=4;
+chanmap2x2tet%[1]:=6;
+chanmap2x2tet%[2]:=8;
+chanmap2x2tet%[3]:=1;
+chanmap2x2tet%[4]:=16;
+chanmap2x2tet%[5]:=9;
+chanmap2x2tet%[6]:=11;
+chanmap2x2tet%[7]:=13;
+chanmap2x2tet%[8]:=5;
+chanmap2x2tet%[9]:=3;
+chanmap2x2tet%[10]:=7;
+chanmap2x2tet%[11]:=2;
+chanmap2x2tet%[12]:=15;
+chanmap2x2tet%[13]:=10;
+chanmap2x2tet%[14]:=14;
+chanmap2x2tet%[15]:=12;
+'********
+
+
+
+'here create dialogue for picking trode type
+trodeType% := 0; '0 = 2x2 tetrode, 1 = 1x16
+if DoConfig%() then
+    SetupToolbar();
+    PL("Entering Toolbar");
+    Toolbar("toolbar running",1+2+4+8+16+32+64+128+256+512,0);
+    PL("Exiting Toolbar");
+else
+    PL("Configuration failed, script exiting.\n");
+endif;
+'
+halt; 'the script is finished
+'
+'
+'********************************
+'*** Functions and Procedures ***
+'********************************
+'
+'***Set up functions and utilities
+'
+func DoConfig%()
+var retSW%[NWAVECHANS%],retSS%,retSDM%,retSTM%,retELE%:=0,i%,successDC%:=0;
+ArrConst(retSW%,0);
+SampleClear();
+retSS% := SampleSequencer(seqfile$);    'set sequencer file
+if (retSS%=0) then
+    PrintLog("Sequencer file set to: %s\n", SampleSequencer$());
+    SampleSeqCtrl(1,0);                 ' Set sequencer option
+    retSDM%:=SampleDigMark(100);        'add digimark channel
+    if retSDM%=0 then
+        retSTM%:=SampleTextMark(100);   'add textmark channel
+        if retSTM%=0 then
+            docase
+            case    (trodeType%=0) then
+                for i%:=1 to NWAVECHANS% do 
+                    retSW%[i%-1]:=SampleWaveform(i%,chanmap2x2tet%[i%-1]-1,samplingRate%);  'add waveform channel for each 'trode
+                next;
+            case    (trodeType%=1) then
+                for i%:=1 to NWAVECHANS% do 
+                    retSW%[i%-1]:=SampleWaveform(i%,chanmap1x16%[i%-1]-1,samplingRate%);  'add waveform channel for each 'trode
+                next;
+            else
+                retELE%:=1;
+            endcase 
+            if ArrSum(retSW%)=0 then 
+                SampleOptimise(2,1,4); 'need to change this depending on which 1401 we use
+                if retELE%=0 then
+                    successDC%:=1;
+                else
+                    PrintLog("Couldn't determine type of electrode being used, config failed");
+                endif
+            else
+                PrintLog("failed to open waveform channel for sampling, check 'retSW%'\n");
+            endif;
+        else
+            PrintLog("failed to open textmark channel.  error is: %s\n",Error$(retSTM%));
+        endif;
+    else
+        PrintLog("failed to open digimark channel.  error is: %s\n",Error$(retSDM%));
+    endif;
+else
+    PrintLog("failed to attach the sequencer file '%s', error is: %s\n",seqfile$, Error$(retSS%));
+endif
+
+return successDC%;
+end;
+'
+proc PL(entered$)
+PrintLog("%s:\t%s\n",GetTimeStamp$(),entered$);
+end;
+'
+func GetTimeStamp$()
+return Date$(2,2,1,1,"-")+" "+Time$(1);
+end;
+'
+proc SetupToolbar()
+
+ToolbarSet(HANDLERID%,"",Handler%);
+ToolbarSet(FINISHEXPID%,"Finish",Finish%);
+ToolbarSet(INITRECID%,"Initialize Recording",InitializeRecording%);
+ToolbarSet(STOPRECID%,"Stop Recording",StopRecordingAndSave%);
+
+end;
+'
+func InitializeRecording%()
+var ret%;
+SampleTrigger(1,32,33,-2,5,-1);
+handledata%:=FileNew(0,1);
+XRange(-1,20);
+ret% := SampleStart();
+if ret%<0 then PrintLog("error starting sampling: %s",Error$(ret%));endif;
+SampleWrite(1);
+return 1;
+end;
+'
+'*******Toolbar functions
+'
+'***
+func Handler%()
+return 1;    
+end;
+'***
+'
+func StopRecordingAndSave%()
+View(handledata%);
+SampleStop();
+'FileSaveAs("");
+FileSaveAs("");
+FileClose();
+return 1;
+end;
+'
+func Finish%()
+return -1;
+end;
+'
+
+

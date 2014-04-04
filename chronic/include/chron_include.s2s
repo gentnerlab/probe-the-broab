@@ -1,0 +1,341 @@
+'This goes in a folder named 'include' which itself goes in the folder that spike2 runs from
+'
+proc PL(entered$)
+PrintLog("%s:\t%s\n",GetTimeStamp$(),entered$);
+end;
+'
+proc WarnDlg(title$,text$)
+DlgCreate(title$,40,10,0,5,-1,0);
+DlgAllow(1+2+4+8+16+32+64+128+256+512);
+DlgText(text$,0,2);
+DlgButton(0,"");
+DlgButton(1,"Ok");
+DlgShow();
+end
+'
+'
+proc ErrDlg(errCode%)
+var ret%;
+DlgCreate(Print$("Error: %d; %s",errCode%,Error$(errCode%)),40,10,0,5,-1,0);
+DlgAllow(1+2+4+8+16+32+64+128+256+512);
+DlgText(Print$("Error: %d\n%s",errCode%,Error$(errCode%)),0,2);
+DlgButton(0,"Enter Debugger");
+DlgButton(1,"Continue On");
+ret% := DlgShow();
+if ret% = 0 then
+    Debug(Print$("Error: %d; %s",errCode%,Error$(errCode%)));
+endif
+end
+'
+'
+func GetTimeStamp$()
+return Date$(2,2,3,3,"-") + "+" + Time$(1,7,3,"-");
+end;
+'
+proc HoursMinsSecs(totalsecs,&hours%,&mins%,&secs%);
+hours% := trunc(totalsecs/60/60);
+mins% := trunc((totalsecs-hours%*60*60)/60);
+secs% := trunc(totalsecs-hours%*60*60 - mins%*60);
+end;
+'
+proc doOptimize(optimizey%)
+if(optimizey%=1)then 
+	Optimise(-2); 
+	optimizey%:=0;
+endif; 
+end
+'
+proc HiLog()
+View(LogHandle()).Window(0,50,50,98,1);
+FrontView(LogHandle());
+end
+'
+func ResetBox()
+PL("\t'Resetbox' Started");
+var returnRB%:=-1;
+var currentSequencer$,retCS%,oldSAF%;
+currentSequencer$:=SampleSequencer$();
+oldSAF% := SampleAutoFile();
+
+'*******set up path variables 
+const seqfileRB$ := "D:\\S2scripts\\danS2Scripts\\working(read-only)\\resetbox_seq.pls"; 
+var handle%,ret%,seqret%,retSS%,retSW%;
+SampleClear();
+retSS% := SampleSequencer(seqfileRB$);    'set sequencer file
+SampleAutoFile(0);
+if (retSS%=0) then
+    PrintLog("Sequencer file set to:\t\t%s\n", SampleSequencer$());
+	retSW%:=SampleWaveform(1,1,25000);  'add waveform channel
+	if retSW%=0 then 
+		SampleOptimise(2,1,4); 'need to change this depending on which 1401 we use
+		
+	else
+        returnRB%:=0;
+		PrintLog("failed to open waveform channel for sampling, check 'retSW%'\n");
+	endif;
+else
+    returnRB%:=0;
+    PrintLog("failed to attach the sequencer file '%s', error is: %s\n",seqfileRB$, Error$(retSS%));
+endif
+
+handle%:=FileNew(0,0);
+if handle% < 0 then
+	WarnDlg("1401 is off.","Couldn't create a new data file.\nIs the 1401 on?\nDidn't think so, don't worry it happens to the best of us!\nHalting ResetBox(), be sure to run it before turning on the relay controller.");	
+	halt;
+endif
+
+SampleWrite(0);
+ret% := SampleStart();
+if ret%<0 then 
+    PrintLog("error starting sampling: %s",Error$(ret%));
+	View(handle%);
+	SampleStop();
+	FileClose(0,-1);	
+	halt;
+endif;
+while (seqret% = 1) do
+	seqret%:=SampleSeqVar(1);
+wend;
+
+View(handle%);
+SampleStop();
+FileClose(0,-1);
+'
+
+SampleClear();
+retCS% := SampleSequencer(currentSequencer$);    'reset sequencer file to what is was when started
+SampleAutoFile(oldSAF%);
+if (retCS%=0) and returnRB% <> 0 then
+	PrintLog("Sequencer file reset to:\t%s\n", SampleSequencer$());
+	PL("\t'Resetbox' successful.  The only output on should be the house light.\n");
+	returnRB%:=1;
+else
+    PrintLog("failed to reattach the original sequencer file '%s', error is: %s\n",currentSequencer$, Error$(retCS%));
+	PL("'Resetbox' had problems.\n");	
+	returnRB%:=0;
+endif
+HiLog();
+return returnRB%; 'the script is finished
+end
+'
+Proc SetBrandVar(prob, v%) 'prob is probability, v% is variable
+prob *= 4294967296.0;      'range 0-4294967296 is 0 to 1.0
+if (prob > 4294967295.0 ) then prob := 4294967295.0 endif;
+if prob > 2147483647 then prob -= 4294967296.0 endif;
+if prob < -2147483647 then prob := -2147483647 endif;
+SampleSeqVar(v%, prob);
+end;
+'
+func RecordRandSeed()
+var rndseed,rndseedint%;
+Rand(0.0); 				'Uses system time to seed the random number generator
+rndseed := Rand(); 		'Gets a random number from newly seeded random number generator
+'Next 4 lines give us a decimal number with exactly 8 places to use as a seed
+rndseed *= 100000000;	'slides first 8 digits to the left of the decimal point
+rndseedint% := rndseed; 'truncates rndseed to an integer (only save the 8 digits)
+rndseed := rndseedint%;	'gets the number back into a real
+rndseed /= 100000000;	'slides the 8 digits back to the right of the decimal point - rand needs a seed on [0,1)
+Rand(rndseed);			'actually seed the random number generator with our 8 digit decimal
+PL(Print$("Rand seeded with %0.9f",rndseed));	'record the seed to the log
+return rndseed;
+end
+'
+func PickAnOpenWindow()
+var windowList%[100],i%;        
+var windowNames$[100];
+var numWindows%;
+var whichFile%:=-1;
+var datahandle%;
+var currView%;
+
+currView% := View();
+numWindows% := ViewList(windowList%[],1);
+
+
+docase
+case numWindows% = 0 then
+    datahandle% := -1;
+case numWindows% = 1 then
+    datahandle%:=windowList%[1];
+case numWindows% > 1 then               'Get a list of all the views, if only 1, then use it, else ask which to use
+    for i%:=1 to windowList%[0] do      'Iterate round all the views
+        View(windowList%[i%]);	
+		windowNames$[i%-1]:=WindowTitle$();
+    next;
+    DlgCreate("Pick desired data file:",40,15,110,3);
+	DlgList(1,100,windowNames$[],windowList%[0]);
+	DlgShow(whichFile%);
+    datahandle%:=windowList%[whichFile%+1];
+endcase
+
+'
+View(currView%);
+return datahandle%;
+end
+'
+func Unique(inArr%[],uniqueArr%[])
+'From Pawel Kusmierek: http://www.ced.co.uk/phpBB3/viewtopic.php?f=5&t=288#p1259
+'inArr%[] holds the array from which we want to determine unique values
+'uniqueArr%[] is an array the same size as inArr%[] which will be filled with the unique values of inArr%
+'Returns: uniqueCount%, which is the number of unique elements in inArr%[] and the number of meaningful elements in uniqueArr%[]
+
+var i%,uniqueCount%;
+'
+ArrSort(inArr%[]);
+uniqueArr%[0]:=inArr%[0];
+uniqueCount%:=1;
+'
+for i%:=1 to Len(inArr%[])-1 do
+    if inArr%[i%]<>inArr%[i%-1] then
+        uniqueArr%[uniqueCount%]:=inArr%[i%];
+        uniqueCount%+=1;
+    endif
+next
+'
+return uniqueCount%;
+end
+'
+func MakeSecondOrderString$(string$)
+'This function replaces any instance of "\\" with "\\\" for use in writing script files programmatically
+var currind%:=1;
+repeat
+	currind% := InStr(string$,"\\",currind%);
+	if currind% = 0 then
+		break;
+	else
+		string$ := Left$(string$,currind%) + "\\" + Right$(string$,Len(string$)-currind%);
+		currind% := currind% + 3;		
+	endif
+until (currind% = 0) or Len(string$) < currind%;
+'
+return string$;
+end;
+'
+func ExportToMatlabDiffSpike2Instance%(smrname$,&outmatname$);
+'This function allows one to export a given .smr file to the .mat format in a different 
+'instance of spike2 (necessary because spike2 will not allow a connection to matlab from 
+'the same instance of spike2 that has exported to the .mat format
+'
+var currpath$ := FilePath$();
+var currview% := View();
+'
+'Export .smr file so it may be opened by another instance of spike2
+var dath% := FileOpen(smrname$,0,1);
+if dath% < 0 then
+	PrintLog("error opening input file: %s\n",Error$(dath%));
+	Message("error opening input file: %s\n",Error$(dath%));
+	return -1;
+endif
+'
+var fpath$ 	:= FileName$(1) + FileName$(2);
+var fname$ 	:= FileName$(3) + FileName$(4);
+var fext$ 	:= FileName$(5);
+var tstr$	:= Date$(2,2,3,3,"-") + "+" + Time$(1,7,3,"-");
+var newfname$ := fpath$ + fname$ + "_" + tstr$ + fext$;
+var news2rname$ := fpath$ + fname$ + "_" + tstr$ + ".s2r";
+
+ExportChanList(0,Maxtime(),-1);
+
+var fsa%:=FileSaveAs(newfname$,0,1);
+
+ if fsa% <> 0 then
+	PrintLog("Problem saving file: %s\n",Error$(fsa%));
+	Message("Problem saving file: %s\n",Error$(fsa%));
+	return -1;
+endif
+
+View(dath%);
+FileClose();
+'done exporting .smr file
+'*********
+
+'Make sure there's no flag file hanging around from a previously run and aborted script
+var flagfilepath$:="D:\\SpikeMatlabSwap\\";
+var flagfilename$ := "spike2instance2done.txt";
+FileDelete(flagfilepath$+flagfilename$);
+'done with flag file check
+'*********
+
+'programmatically write the script file for the second instance of spike2 to run
+
+
+if Len(outmatname$) = 0 then	'if not given an outname then make it default
+	outmatname$ := fpath$ + fname$ + "_" + tstr$ + ".mat";
+endif
+
+var scriptfiletorun$:="D:\\S2scripts\\danS2Scripts\\dev\\tempS2MLexportscript.s2s";
+var scriptfiletorunhandle% := FileNew(3);
+View(scriptfiletorunhandle%);
+
+Print("View(App(0));\n");
+Print("WindowVisible(2);\n");
+Print("var dh%% := FileOpen(\"%s\",0,1);\n",MakeSecondOrderString$(newfname$));
+Print("ExportChanList(0,Maxtime(),-1);\n");
+Print("var retFSA%:=FileSaveAs(\"%s\",100,0,\"\",0,\"UseSName=1|UseCName=0|WaveTimes=0|BinFreq=0\");\n",MakeSecondOrderString$(outmatname$));
+Print("PrintLog(\"%%d, %%s\\n\",retFSA%,Error$(retFSA%));\n");
+Print("View(dh%%);\n");
+Print("FileClose();\n");
+Print("FileNew(1,0);\n");
+Print("FileSaveAs(\"%s\",1,1);\n",MakeSecondOrderString$(flagfilepath$ + flagfilename$));
+Print("FileClose();\n");
+FileSaveAs(scriptfiletorun$,3,1);
+FileClose();
+
+'Open the second instance of spike2 and run the script you just wrote
+var proghandle%:=ProgRun(Print$("sonview.exe /M /Q %s",scriptfiletorun$));
+
+'check to see if flagfilename$ pops up in its dir, then we will know instance2 is Done
+var checkname$;
+FilePathSet(flagfilepath$);
+var timeout := 20.0;
+var currtime := Seconds();
+while 1 do
+	if FileList(checkname$, 1, flagfilename$) = 1 then
+		var checkFO% := FileOpen(flagfilename$,1);
+		if checkFO% > 0 then
+			FileClose();
+			FileDelete(flagfilename$,0);
+			break;
+		else
+			Message("Error opening flag file: %s",Error$(checkFO%));
+			PrintLog("Error opening flag file: %s\n",Error$(checkFO%));
+			return -1;
+		endif
+	else
+		if Seconds() > currtime + timeout then
+			Message("flag file check has timed out. Timeout = %2.2f",timeout);
+			PrintLog("flag file check has timed out. Timeout = %2.2f\n",timeout);
+			return -1;
+		endif
+	endif
+wend
+'
+var progkil% := ProgKill(proghandle%);     'CAREFUL WITH THIS!
+'
+var FD1%:=FileDelete(newfname$);
+var FD2%:=FileDelete(news2rname$);
+'
+PrintLog("%s successfully exported to %s\n\n",smrname$,outmatname$);
+'
+FilePathSet(currpath$);
+View(currview%);
+return 1;
+end
+'
+func Shuffle%(arr[])	                               'random shuffle of the contents of an array     (from CED website 20100609)
+'randomises the order of items in the array
+var o%,num%,i%,j%,t;
+
+num%:=Len(arr);
+for j% := 1 to 3 do	                                  'Shuffle 3 times
+	for i% := 0 to num%-1 do	                         'for each array value
+		o% := Rand() * num%;	                            'Generate random number between 0 and number of values in array
+		if (o% <> i%) and (o% < num%) then	             'if random number is not current entry
+			t := Arr[i%];	                            'Get value of current entry
+			Arr[i%] := Arr[o%];	                      'Swap with randomly selected entry
+			Arr[o%] := t;			
+		endif;		
+	next;
+next;
+return 1;
+end;

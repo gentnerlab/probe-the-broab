@@ -1,0 +1,8 @@
+#include <chron_include.s2s>
+'
+ResetBox();
+'
+View(LogHandle()).Window(0,50,50,98,1);
+FrontView(LogHandle());
+'
+halt; 'the script is finished

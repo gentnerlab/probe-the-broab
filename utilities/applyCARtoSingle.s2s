@@ -1,0 +1,118 @@
+#include <chron_include.s2s>
+
+var datahandle%;
+datahandle%:=PickAnOpenWindow();
+if datahandle% < 0 then
+    Message("No data windows open - halting!");
+    PrintLog("No data windows open - halting!");
+    halt;
+endif
+
+View(datahandle%);
+
+var chansToCAR%[500];
+ChanList(chansToCAR%[],65536); 'picks all selected channels
+
+var desiredCARchan%;
+	DlgCreate("Pick Chan to CAR (will use those currently selected as References)",30,0.1,0,3); 'pick channel to use as ref	
+	DlgList(1,"Pick Chan to CAR:\n(will use those currently selected as References)","1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16");
+	DlgShow(desiredCARchan%);
+
+PrintLog("\nnew virtual channel: %d\n",setupCAR%(desiredCARchan%+1,chansToCAR%[]));
+
+
+func setupCAR%(chan%,carChans%[])
+var currChan%;
+View(datahandle%);
+var vChan%,vExpression$;
+
+vExpression$:=Print$("ch(%d)-((",chan%);
+for currChan% := 1 to carChans%[0] do
+	if carChans%[currChan%] <> chan% then
+		vExpression$ += Print$("ch(%d)+",carChans%[currChan%]);
+	endif		
+next;
+vExpression$ += Print$("0)/%d)",carChans%[0]);
+vChan% := VirtualChan(0,vExpression$,chan%);
+ChanTitle$(vChan%,Print$("ch%d-CAR",chan%));
+Optimise(vChan%);
+ChanShow(vChan%);
+
+Message("Now go the the new channel -> channel information -> rescale (then automate this)");
+
+return vChan%;
+end
+'
+
+
+'func SetSaveChans%()
+'var ssc%,ssc1%,ssc2%,ssc3%,chooseWFChans%[nWavChans%+2];
+'savedWFChans%[0]:=0;
+'if trodeType% <> 3 then
+'	DlgCreate("Which Channels to use as refs Record?",32.5,0.1,50,nWavChans%+2,-1,0);
+'	DlgButton(1,"Save Checked Channels",0,20,(nWavChans%/2));
+'	DlgButton(0,"Save All Channels",0,22.5,(nWavChans%/2)+3);
+'else
+'	DlgCreate("Which Channels to Record?",32.5,0.1,50,nWavChans%+2,-1,0);
+'	DlgButton(1,"Save Checked Channel",0,20,(nWavChans%/2)+1);
+'	DlgButton(0,"Save All Channels",0,22.5,(nWavChans%/2)+2);
+'endif
+'
+'for ssc% :=1 to currChanMap%[0] do
+'	DlgCheck(ssc%,Print$("%d",ssc%),10,1+ssc%);
+'next;
+'
+'DlgButton(2,"Select all",SelectAllSSC%,25.5,(nWavChans%/2)-3);
+'DlgButton(3,"Clear all",ClearAllSSC%,26,(nWavChans%/2)-1.5);
+'var retret%;
+'retret%:=DlgShow(chooseWFChans%[]);
+'if  retret%=0 then
+'	PL("Saving all channels.");
+'	savedWFChans%[0]:=nWavChans%; 'use convention of zeroth index being num elements
+'	for ssc1%:=1 to nWavChans% do	
+'		savedWFChans%[ssc1%]:=ssc1%;
+'	next
+'else
+'	PrintLog("User selected the following channels to save");
+'	for ssc2%:=1 to nWavChans% do
+'		if chooseWFChans%[ssc2%-1] = 1 then	
+'			savedWFChans%[0]+=1;
+'			savedWFChans%[savedWFChans%[0]]:=ssc2%;
+'			PrintLog(", %d",ssc2%);
+'		endif
+'	next
+'	PrintLog("\n");
+'endif
+'
+'for ssc3%:=1 to savedWFChans%[0] do 'have to do this because chans 30-32 are hardcoded for keyboard, textmark, and digmark
+'	if savedWFChans%[ssc3%] > 29 then
+'		docase
+'		case savedWFChans%[ssc3%] = 30 then
+'			savedWFChans%[ssc3%] := 33;
+'		case savedWFChans%[ssc3%] = 31 then
+'			savedWFChans%[ssc3%] := 34;
+'		case savedWFChans%[ssc3%] = 32 then
+'			savedWFChans%[ssc3%] := 35;
+'		endcase;
+'	endif;
+'next;
+'
+'return 1;
+'end
+''
+'func SelectAllSSC%()
+'var iSA%;
+'for iSA% :=1 to currChanMap%[0] do
+'	DlgValue(iSA%,1);
+'next;
+'return 1;
+'end;
+''
+'func ClearAllSSC%()
+'var iCA%;
+'for iCA% :=1 to currChanMap%[0] do
+'	DlgValue(iCA%,0);
+'next;
+'return 1;
+'end;
+''

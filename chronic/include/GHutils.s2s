@@ -1,0 +1,450 @@
+'Date: June 2007
+'Author: GH
+
+'This script contains a library of script functions that can be used by other scripts
+'In order to use them, place this script in a folder named "include" inside the Spike2 directory
+'and use:
+
+'#include <GHutils.s2s>
+
+'as the first code line in the main script.
+'See the Spike 2 Help for further details on "include".
+'This feature is new in Spike2 version 6.
+
+'Contents:
+
+'HideApps()/RestoreApps()	                    'Hide Spike2 toolbars and the like while a script runs and restore them when the script closes
+'NewsFlash()/NFIdle%()	                          Display a floating Message box at the desired screen location. Optional beep and auto-close after set time has elapsed.
+'DoButtons%()	                                           'Enable/disable multiple toolbar buttons
+'FindView()	                                           'Find an open view of the selected type, make it current and bring it to the front.
+'LinkDlgToCsr%()	                                     'move a cursor when user adjusts the time in a dialog
+'LinkCsrToDlg()	                                           'update a DlgReal item displaying a time when the user drags a cursor in a time view
+'LinkDlgToHcsr()	                                      update the position of a horizontal cursor when user adjusts a dialog item
+'LinkHCsrToDlg()	                                     'update a dialog item when user drags a horizontal cursor
+'FChanList%()	                                           'create a channel list based on channel type and channel title
+'AddScriptBarBtn%()	                               'Adds a script to the script bar if it is not there already 
+'DelDup%(ch%)                                            'deletes all existing duplicates of a Spike2 data channel  (added Dec. 2010)
+'HmsTod%(sxx,modexx%,&hrxx%,&minxx%,&secxx%) converts a time in seconds to Time of day and hh:mm:ss format
+
+'modified: 16/03/2009
+'AddScriptBarBtn%() modified to show dialog with option to add a button to the Script Bar
+'02/12/2009	                                           'fixed a problem in FChanList%(). Case sensitive searches should now work properly
+'28/07/2011                                                  'increased number of horizontal cursors from 4 to 9
+'15/09/2011                                                  FChanList%() cs% arguement sets the type of search as the sum of the following codes:
+'                                                                   0:  case insensitive
+'                                                                   1: case sensitive
+'                                                                   2: regular expression search
+'26/02/2013                                             Newsflash no longer resets the Seconds() timer
+
+var gFloat%[20];	                                     'App() view handles
+var tflash;	                                           'timer used by NewsFlash
+var tt999;                                                'seconds counter
+var lastC[11];	                                        'last position of each cursor ([0] unused)
+var lasthc[10];	                                        'last position of horizontal cursors ([0] not used)
+
+Proc HideApps();	                                     'Hide unnecessary toolbars etc. while script is running.
+var i%;
+View(App(3)).WindowVisible(1);	                      'normalise script view before hiding (may reappear if maximised)
+gFloat%[0] := App(-2);	                               'number of windows
+for i% := 1 to gFloat%[0] do	                         'hide all windows and save state
+	gFloat%[i%] := View(App(i%)).WindowVisible(0);
+next;
+return;
+end;
+
+Proc RestoreApps();	                                  'Restore toolbars etc. to former glory
+var i%;
+
+for i%:=1 to gFloat%[0] do
+	docase
+	case i%=3 then
+		View(App(3)).Windowvisible(0);	                'keep script invisible
+	else
+		View(App(i%));	                                  'restore other items to previous state
+		WindowVisible(gFloat%[i%]);
+	endcase;
+next;
+return;
+end;
+
+proc NewsFlash(msg$,Tshow,x,y,beep%);	                'floating message box at coordinates with optional audible alert
+'msg$: message to display. If the string contains a vertical bar, preceding text will be used as a title otherwise the title <Info> is used (mod.02/08JGP)
+'Tshow: close the dialog automatically after Tshow seconds
+'x,y: coordinates of the top left corner of the dialog box
+'beep%: set as 1 to play a system asterisk sound when the box opens. Set 0 for no warning sound.
+'This procedure works in conjunction with  func NFIdle%();
+
+var dummy;
+if Tshow < 1.5 then Tshow:=1.5; endif;	                'set minimum display time
+tflash:=Tshow;	                                        'tflash is a global variable
+if beep% then
+	Sound("S*",1);	                                     'beep
+endif;
+tt999:= Seconds();                                        'get current seconds count
+'Seconds(0);	                                           'reset the clock
+dummy := InStr(msg$,"|",1);	                         'check for | char
+if dummy then                          
+	DlgCreate(Left$(msg$,dummy-1),x,y);	                'split title and message
+	msg$:= DelStr$(msg$,1,dummy);       
+else
+	DlgCreate("Info",x,y);	                            'else use default title
+endif;
+DlgLabel(1,msg$);
+DlgAllow(1023,NFIdle%);	                               'Idle routine does the timing
+DlgButton(0,"");	                                     'hide cancel button
+DlgShow(dummy);
+return;
+end;
+
+func NFidle%();	                                     'Newsflash idle routine
+var ret%:=1;
+if Seconds() > tt999+tflash then	                            'times up 
+	ret%:= 0;	                                        'so close message box
+endif;
+return ret%;
+end;
+
+func DoButtons%(sel$,btnspec$,a%,b%,c%,d%,e%,f%);	    'multiple button enable/disable
+'sel$ This string indicates the action to perform on the buttons listed in the following arguements
+'The options are:
+'	"clear": clear the buttons in the list
+'	"on": enable buttons 
+'	"off": disable buttons 
+'	"onx": enable all buttons except those listed
+'	"toggle": flip the state of selected buttons
+
+'btnspec$  A list of button numbers separated by commas. The 1..4 construction is not valid
+'If btnspec$ is an empty string, then the function takes the arguements
+'a%- f%  as button numbers. Set trailing unused button numbers to 0
+const off%:=0,on%:=1;
+var n%,i%,btnNr%[40],onoff%;
+
+sel$:=LCase$(sel$);	                                  'ensure that action is lower case
+n%:=ReadStr(btnspec$,btnNr%[]);	                      'get button numbers in the specification
+if n% = 0 then	                                        'if specification is empty, count individually specified button numbers
+	btnNr%[0]:=a%; btnNr%[1]:=b%; btnNr%[2]:=c%; btnNr%[3]:=d%; btnNr%[4]:=e%; btnNr%[5]:=f%;	'copy individual button numbers to array
+	while btnNr%[n%] > 0 and n% <=5 do
+		n%+=1;	                                        'count of individually specified buttons
+	wend;
+endif;
+
+docase
+case sel$ <> "clear" and sel$ <> "toggle"and sel$ <> "onx" 
+	and sel$ <> "offx" and sel$ <> "on" and sel$ <> "off" then return -1;	'invalid sel$
+	
+case n% = 0 then return -2;	                         'no button numbers found in the specification
+	
+case sel$ ="clear" then
+	for i% := 0 to n%-1 do
+		ToolbarClear(btnNr%[i%]);
+	next;
+	return 1;
+	
+case sel$ = "toggle" then
+	var state%[2];
+	state%[0]:=1; state%[1]:=0;
+	for i%:=0 to n%-1 do
+		onoff%:=ToolbarEnable(btnNr%[i%]);	             'get the current status of the button 
+		ToolbarEnable(btnNr%[i%],state%[onoff%]);	       'flip it
+	next;
+	return 1;
+else
+	docase
+	case sel$ = "offx" then ToolbarEnable(-1,off%);	    'disable all buttons
+	case sel$ = "onx" then ToolbarEnable(-1,on%);	    'enable all buttons
+	endcase;
+	
+	docase
+	case sel$ = "on" or sel$ = "offx" then onoff%:= on%;
+	case sel$ = "off" or sel$ = "onx"  then onoff%:= off%;
+	endcase;
+	for i%:= 0 to n%-1 do
+		ToolbarEnable(btnNr%[i%],onoff%);	             'enable/disable selected buttons
+	next;
+endcase;
+return 1;
+end;
+
+proc FindView(&vh%,kind%)	                            'find an open view of specified kind, bring it to the front and assign a viewhandle
+'&vh% a viewhandle
+'kind% the kind of view to look for. See ViewKind() for the list of codes
+'If the initial vh% is of the required kind, the function simply makes it current and brings it to the front.
+'Otherwise, it searches for a view of the required kind and makes the first one it finds the current and front view
+'and returns its handle in vh%.
+'If no view of the required kind was found the function does nothing
+var vlist%[2],n%;
+var type%[13];
+var v%;
+
+type%[0]:=1; type%[1]:=2; type%[2]:=4; type%[3]:=8; type%[4]:=16; type%[12]:=4096;	'convert between code for ViewKind() and ViewList() 
+vh%:=View();	                                        'get current view
+if ViewKind(vh%) <> kind% then	                      'if current view not of required kind then
+	n%:=ViewList(vlist%[],type%[kind%]);	             'list open views of selected kind
+	if n% > 0 then	                                       	
+		vh%:=vlist%[1];
+	endif;
+endif;
+if ViewKind(vh%) = kind% then	                         'if we found a suitable view
+	View(vh%);	                                        'make it current
+	FrontView(vh%);	                                  'bring it to the front
+endif;
+return;
+end;
+
+func LinkDlgToCsr%(item%,ditm%,csr%,timevh%)	          'move cursor to match time set in dialog
+'This function links a DlgReal() item for an x-coordinate to a cursor position so that the cursor jumps to the new position
+'when the dialog item is updated. The function must be called in the Change function of the dialog.
+
+'Arguements:
+'item%:	the dialog item that is currently being updated
+'ditm%:	the dialog item to link to a cursor position
+'csr%:	the number of the cursor to link to the dialog item. The cursor must already exist.
+'timevh%:	the handle of the view containing the cursor
+var vh%;
+vh%:=View();	                                        'remember current view
+if ViewKind(timevh%) = 0 then
+   View(timevh%);
+	if item% =ditm% then	              	
+      Cursor(csr%,DlgValue(ditm%));	                   'move cursor to new position
+	endif;
+   lastC[csr%]:=-1;	                                  'force idle routine to update selection
+endif;
+View(vh%);	                                           'restore previous view
+return 1;
+end;
+
+proc LinkCsrToDlg(ditm%,csr%,timevh%)	                'update dialog item when user drags a cursor
+'This procedure links a cursor position to a DlgReal() item so that the dialog item updates when the cursor is dragged.
+'It must be called in the Idle function of the dialog.
+
+'Arguements:
+'ditm%:	the dialog item to link to a cursor position
+'csr%:	the number of the cursor to link to the dialog item. The cursor must already exist.
+'timevh%:	the handle of the view containing the cursor
+
+var vh%;
+vh%:=View();	                                        'remember current view
+if ViewKind(timevh%)= 0 then
+   View(timevh%);
+   if Cursor(csr%) <> lastC[csr%] then	                'if cursor moved since last time we looked...
+      DlgValue(ditm%,Cursor(csr%));	                   'update dialog to match
+      lastC[csr%]:=Cursor(csr%);	                      'remember current position
+   endif;
+endif;
+View(vh%);	                                           'restore previous view
+return;
+end;
+
+proc LinkDlgToHcsr(item%,ditm%,hcsr%,chan%,timevh%)	 'update horizontal cursor position when user changes a dialog item
+'This function links a DlgReal() item for a y-coordinate to a horizontal cursor position so that the cursor jumps to the new position
+'when the dialog item is updated. The function must be called in the Change function of the dialog.
+'If the HCursor position is set outside the current YRange() the range is adjusted to keep the HCursor visible.
+
+'Arguements:
+'item%:	the dialog item that is currently being updated
+'ditm%:	the dialog item to link to a HCursor position
+'hcsr%:	the number of the Hcursor to link to the dialog item.
+'chan%:	the channel number that the cursor is attached to.
+'timevh%:	the handle of the view containing the Hcursor
+var vh%;
+vh%:=View();	                                        'remember current view
+if ViewKind(timevh%)= 0  and HCursorExists(hcsr%) then
+   View(timevh%);
+   if item% = ditm% or item%=0 then	                   'if HCursor position item in dialog was adjusted
+      HCursor(hcsr%,DlgValue(ditm%));	                'move cursor to new position
+      lasthc[hcsr%]:=HCursor(hcsr%);	                'remember current position
+		docase
+		case HCursor(hcsr%) > YHigh(chan%) then	       'rescale if hcursor position would be invisible.
+			YRange(chan%,YLow(chan%),HCursor(hcsr%));
+		case HCursor(hcsr%) < YLow(chan%) then
+			YRange(chan%,HCursor(hcsr%),YHigh(chan%));
+		endcase;
+	endif;
+endif;
+View(vh%);	                                           'restore previous view
+return;
+end;
+
+proc LinkHCsrToDlg(ditm%,hcsr%,chan%,timevh%)	       'update dialog item when user drags Hcursor
+'This procedure links a Hcursor position to a DlgReal() item so that the dialog item updates when the Hcursor is dragged.
+'It must be called in the Idle function of the dialog.
+'The HCursor position is restricted to the  visible range of current channel.
+
+'Arguements:
+'ditm%:	the dialog item to link to a Hcursor position
+'hcsr%:	the number of the Hcursor to link to the dialog item.
+'chan%:	the channel number that the cursor is attached to.
+'timevh%:	the handle of the view containing the Hcursor
+var vh%;
+vh%:=View();	                                        'remember current view
+if ViewKind(timevh%)= 0 and HCursorExists(hcsr%) then
+	docase
+	case HCursorChan(hcsr%)<> chan% then	             'user selected new channel in dialog (or dragged cursor to new channel)
+		HCursor(hcsr%,lasthc[hcsr%],chan%);
+		'YLow(chan%)+0.5*(YHigh(chan%)-YLow(chan%))
+		
+	case HCursor(hcsr%)> YHigh(chan%) then	             'keep hcursor in the visible range
+		HCursor(hcsr%,YHigh(chan%));
+	case HCursor(hcsr%)< YLow(chan%) then
+		HCursor(hcsr%,YLow(chan%));
+	endcase;	
+	if HCursor(hcsr%)<> lasthc[hcsr%] then	             'user moved horizontal cursor
+		DlgValue(ditm%,HCursor(hcsr%));	                'adjust dialog item to match
+		lasthc[hcsr%]:=HCursor(hcsr%);
+	endif;
+endif;
+View(vh%);	                                           'restore previous view
+return;
+end;
+
+func FChanList%(chlst%[],types%,inttl$,cs%)	          'creates a list of channels in the current view that fit the type and title specifications
+'You can use this function to generate a channel list for a dialog filled with, for example, all the waveform channels with "Vol" in the title.
+
+'chlst%[]:  list of channels fitting the specification is returned in this array
+'types:     mask of channel types to return as in ChanList(), e.g. 1+2+1024.
+'inttl$:    include channels with titles matching this string. You can use regular expression codes in this string in order to perform
+'          more sophisticated matches, for example involving wildcards. Note that because the backslash is an escape in script,
+'          you will need to insert an extra backslash before regular expression codes that contain a \.
+'          For example, the code for start of a word is \\< NOT \<
+'cs%:    sum of:    0: case insensitive search;  1: case sensitive search;  2 regular expression search.    MODIFIED 07/09/2011
+'           e.g. 3 or "2+1"  for a case sensitive search using regular expressions
+
+'returns the number of channels fitting the specification or -1 if the view was of wrong type
+
+var i%,ln%,a$,b$,k%,ret%,tst%;
+var clipvh%;	                                        'handle of a temporary text file, a clipboard for copy/pasting channel titles and checking for matches with the search string
+var vh%;	                                              'handle of current view when the function is called
+var list%[400];                                        '4:  use regular expraeeion search; 0 simple search.
+var rexpflg%;
+
+if cs%>=2 then rexpflg%:=4; endif;                     'enable regular expression search
+ArrConst(chlst%[],0);	                               'clear array that returns channel spec
+vh%:=View();
+clipvh%:=FileNew(1);	                                  'create a hidden clipboard
+Window(5,80,45,90);
+View(vh%);
+k%:=ViewKind();
+if k% = 0 or k% =4 or k% = 12 then	                   'if current view is ok (time, result or xy view) 
+   ChanList(list%[],types%);	                         'get channels of selected type
+   if list%[0] = 0 then
+      ret%:=0;	                                        'no channels of type found
+   else
+      ln%:=Len(chlst%[]);	                            'get size of array for storing the results
+      i%:=1;	                                        'initialise counter
+      repeat	                                        'search the list for channels that fits the inttl$ specification
+         if cs% = 1 or cs%=3 then	                            'case sensitive
+            a$:=ChanTitle$(list%[i%]);	                'channel title
+            b$:=inttl$;	                               'string to search for
+         else	                                        'case insensitive
+            a$:=LCase$(ChanTitle$(list%[i%]));
+            b$:=LCase$(inttl$);
+         endif;
+			View(clipvh%);
+			EditSelectAll();
+			EditClear();	                               'wipe the slate clean
+			Print("%s",a$);	                            'copy title to clipboard
+			MoveTo(0,0);
+			tst%:=EditFind(b$,1,rexpflg%+cs%);	                'look for a match
+			if tst% then 
+            'channel title matches search string
+            chlst%[0]+=1;	                            'increment element 0
+            chlst%[chlst%[0]]:=list%[i%];	             'add to list of channels 
+         endif;        
+         i%+=1;	                                     'increment counter
+			View(vh%);
+      until chlst%[0] = ln%-1 or i% > list%[0];	       'until output array chlst%[] is full or all channels of type% were checked
+      ret%:=chlst%[0];	                               'return number of channels that meet the spec.
+   endif;
+else
+   ret%:=-1;	                                        'error wrong view type
+endif;
+View(clipvh%);	                                        'delete the clipboard
+FileClose(0,-1);
+View(vh%);
+return ret%;
+end;
+
+func AddScriptBarBtn%(set$)	                         'adds a button to script bar linked to the script specified in the set$ arguement.
+'set$: This arguement consists of up to 8 characters of button label, a vertical bar, the path to the script file including .s2s,
+'a vertical bar and a pop-up comment for the script bar button.
+'The function returns 1 if the button was added successfully or already exists, or -1 if the script bar was full.
+
+var status%,ok%;
+var btn%;
+var get$;
+btn%:=-1;
+repeat	                                              'check whether the this script has been added to the script bar
+	btn%+=1;	                                           
+	status%:=ScriptBar(btn%,get$);	                   'get button label
+	ok%:=InStr(get$,set$);	                            'does button for this script exist already?
+until  ok%>0 or status%<0;
+
+if status%<0 then	                                     'no button on the Script Bar	
+	DlgCreate("Query",70,10);
+	DlgText("Add this script to the Script Bar?",2,1);
+	DlgButton(0,"No");
+	DlgButton(1,"Yes");
+	ok%:=DlgShow();	
+	if ok% then
+      status%:=ScriptBar(set$);	                         'add it now (if there is room)
+      if status%< 0 then
+         NewsFlash("Warning: Couldn't add this script to the Script Bar. No space available.",3.0,0,0,1);
+         return -1;
+      else
+         View(App(6)).WindowVisible(1);	                'show script bar
+		endif;
+   else
+      Message("Do not ask me again!|To disable this query, search the script file for the line beginning:     AddScriptBarBtn%()\n"+
+      "Comment it out, ie, enter a single quote as the first character on the line and re-save.");
+   endif;
+endif;
+return 1;
+end;
+
+func DelDup%(ch%)                                      'Function to delete any existing duplicates of a Spike2 data channel 
+'returns the number of duplicate channels that were deleted or -1 if the current view was not a time view
+var nDups%;                             'Number of existing duplicates
+var i%;
+
+if ViewKind()<>0 then return -1; endif;'view is not a time view
+nDups% := DupChan(ch%);                 'Get number of duplicates
+if nDups% > 0 then                      'Delete any existing duplicates of the channel
+   for i% := 1 to nDups% do
+      ChanDelete(DupChan(ch%,i%));    
+   next;
+endif;
+return nDups%;                          'Return the number of duplicates deleted
+end;
+
+func HmsTod%(sxx,modexx%,&hrxx%,&minxx%,&secxx%)  'Convert input time in seconds to hr:min:sec or time of day format
+'Retuns the time in the altenative formats that can be shown on the x-axis of a time view
+'sxx                                          input time in seconds
+'modexx%:                             0: sets h :m :s format;
+'                                          1:   sets time of day format. In this mode, the current view must be a time view with a built in creation date and time.
+'hrxx%,minxx%,secxx%         time in hours minutes and seconds (rounded to nearest second) is passed in these arguments
+
+'returns                                -1 if mode 1 selected by the current view is not a time view.
+'                                         In mode 0 returns  the number of days
+
+var vh%,td%[3];
+var tsec%,amin%,day%;
+
+docase
+case modexx%=0 then 'convert to hh:mm:ss elapsed
+   tsec%:=Round(sxx);  'current time in seconds    
+case modexx%=1 then'convert to time of day
+   vh%:=View();
+   if ChanKind(vh%)<>0 then return -1; endif; 'not a time view
+   FileTimeDate(td%[]); 'creation time ss:mm:hh format
+   tsec%:=Round(sxx)+td%[0]+td%[1]*60 +td%[2]*3600;  'current time in seconds since midnight   
+endcase;
+secxx%:=tsec% mod 60;
+amin%:=tsec%/60;
+minxx%:=amin% mod 60;
+hrxx%:=amin%/60;
+if hrxx%>24 then
+     day%:=hrxx%/24;
+     hrxx%:=hrxx% mod 24
+endif;
+return day%;
+end;

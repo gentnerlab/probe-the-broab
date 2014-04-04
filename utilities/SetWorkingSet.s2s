@@ -1,0 +1,2 @@
+Profile("Win32","Minimum working set",1048576);  'set new minimum size as 800 kB - Yep even on win64 you use win32 
+Profile("Win32","Maximum working set",2097152); 'set new maximum size to around 16 MB - Yep even on win64 you use win32
