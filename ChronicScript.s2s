@@ -4,7 +4,7 @@
 '
 'TODO save Log file incrementally
 '
-#include <chron_include.s2s>
+#include "include/chron_include.s2s"
 
 StartupScript();
 '
@@ -73,8 +73,9 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	'***done: pathvars***
 	'+++++++++++++++
 	'***filevars***
-	const NUMMAXIMUMTICKS% := 2147483647; 'Maximum number of file time ticks possible (see Spike2 manual 4-9)
-	const MAXCHANSPERFILE% 		:= 200; 'default is 32, max for spike 6 is 400
+    const NUMMAXIMUMTICKS% := -1; ' with v8 64bit .smrx files, no upper bound.
+	'const NUMMAXIMUMTICKS% := 2147483647; 'Maximum number of file time ticks possible (see Spike2 manual 4-9)
+	const MAXCHANSPERFILE% 		:= 400; 'default is 32, max for spike 6 is 400
 	const MAXFILEMINS%			:= -1; 'set to <0 if you want to programmatically control based on sampling frequency etc. See CheckFileSizeLengthNTOD%()
 	'const MAXFILEMINS%			:= 15; 'set to <0 if you want to programmatically control based on sampling frequency etc. See CheckFileSizeLengthNTOD%()
 	const audioPWAKey$          := "a"; 'this is label for play wave area.
@@ -811,10 +812,10 @@ if (timeSinceLastSizeCheck > secondsBTSizeChecks or lastSizeCheckTime = -1) then
 	endif
 endif
 '
-if CheckOkFileLength%(MAXFILEMINS%) <> 1 then  'check every loop round handler (while not in a trial)
-	StopRecordingandSave%(0);
-	return 1;
-endif
+'if CheckOkFileLength%(MAXFILEMINS%) <> 1 then  'check every loop round handler (while not in a trial)
+'	StopRecordingandSave%(0);
+'	return 1;
+'endif
 '
 docase
 case qhWaitingToJump% = 1 then
@@ -854,38 +855,38 @@ else
 endif
 end
 '
-func CheckOkFileLength%(maxmins%)
-var fudge := 0.975;
-var maxMinutesPossible := NUMMAXIMUMTICKS% * usecpertime * 1.0e-6 / 60.0;
-var maxMinutesDesired := Floor(maxMinutesPossible * fudge);
-var currhandle%;
-'
-if SampleStatus() <> 2 then 'sampling's not happening
-	PrintLog("ERROR: this function should never be called if not sampling.\nHALTING.");
-	return -1;
-else
-	currhandle% := View();
-	View(datahandle%);
-	'Check total file time
-	if maxmins% < 0 then 'use programmatic max time (maxMinutesDesired)
-		if MaxTime() > maxMinutesDesired*60.0 then
-			View(currhandle%);
-			return 0;
-		else 
-			View(currhandle%);
-			return 1;
-		endif
-	else
-		if MaxTime() > maxmins%*60.0 then
-			View(currhandle%);
-			return 0;
-		else 
-			View(currhandle%);
-			return 1;
-		endif
-	endif          
-endif
-end
+'func CheckOkFileLength%(maxmins%)
+'var fudge := 0.975;
+'var maxMinutesPossible := NUMMAXIMUMTICKS% * usecpertime * 1.0e-6 / 60.0;
+'var maxMinutesDesired := Floor(maxMinutesPossible * fudge);
+'var currhandle%;
+''
+'if SampleStatus() <> 2 then 'sampling's not happening
+'	PrintLog("ERROR: this function should never be called if not sampling.\nHALTING.");
+'	return -1;
+'else
+'	currhandle% := View();
+'	View(datahandle%);
+'	'Check total file time
+'	if maxmins% < 0 then 'use programmatic max time (maxMinutesDesired)
+'		if MaxTime() > maxMinutesDesired*60.0 then
+'			View(currhandle%);
+'			return 0;
+'		else 
+'			View(currhandle%);
+'			return 1;
+'		endif
+'	else
+'		if MaxTime() > maxmins%*60.0 then
+'			View(currhandle%);
+'			return 0;
+'		else 
+'			View(currhandle%);
+'			return 1;
+'		endif
+'	endif          
+'endif
+'end
 '
 func HWaitingToJump%()
 if VERBOSELOG%=1 then PL("in: HWaitingToJump%"); endif
@@ -956,7 +957,7 @@ endif
 currentStimLength:=UploadStim(fn$);
 FilePathSet(dataPathRoot$);
 if currentStimLength>0.0 then
-    currentStimName$:=Left$(fn$,InStr(fn$,".smr")-1);
+    currentStimName$:=Left$(fn$,InStr(fn$,".smrx")-1);
     if qMC% <> 1 then
         currentStimClass%:=stimClasses%[currStim%];
 		if doCorrectionTrial% = 1 and doFeedCorrectionTrials% <> 1 then
@@ -2723,22 +2724,22 @@ View(stimHandle%);
 FileClose();
 View(currviewLSFS%);
 '
-'Check to make sure that all the stim files called for in the protocol file are present and converted to .smr format
+'Check to make sure that all the stim files called for in the protocol file are present and converted to .smrx format
 var iSPS%,truncNameSPS$,testSPS$,dummySPS$,retSPS$,errSPS%;
 for iSPS% := 0 to numStimFiles%-1 do
 	truncNameSPS$ := DelStr$(stimFileNames$[iSPS%],InStr(stimFileNames$[iSPS%],stimExt$),Len(stimExt$));
-	testSPS$ := truncNameSPS$+".smr";
+	testSPS$ := truncNameSPS$+".smrx";
 	if(FileList(dummySPS$,0,testSPS$)) then
 		stimFileNames$[iSPS%]:=testSPS$;
 		if VERBOSELOG%=1 then PrintLog("In LoadStimFileStims%:\tSpike2 file '%s' already exists, and was not converted\n", stimFileNames$[iSPS%]); endif
 	else
 		if VERBOSELOG%=1 then PrintLog("In LoadStimFileStims%:\tLoading '%s' from StimLib and Converting to ... ",stimFileNames$[iSPS%]); endif
-		retSPS$ :=FileConvert$(stimLibPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%);
+		retSPS$ :=FileConvert$(stimLibPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave;AppVer=Spike,802");
 		if errSPS%=0 then
 			PrintLog("'%s'\n",retSPS$);
 			stimFileNames$[iSPS%]:=testSPS$;
 		else     'if can't find it in the stimlib then look in the subject's stim path
-			retSPS$ :=FileConvert$(stimPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%);
+			retSPS$ :=FileConvert$(stimPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave;AppVer=Spike,802");
 			if errSPS% = 0 then
 				PrintLog("'%s'\n",retSPS$);
 				stimFileNames$[iSPS%]:=testSPS$;
@@ -2763,20 +2764,20 @@ n% := FileList(stimFileNames$[],-1,"*"+stimExt$);
 for iCSF% := 0 to n%-1 do
     truncName$ := DelStr$(stimFileNames$[iCSF%],InStr(stimFileNames$[iCSF%],stimExt$),Len(stimExt$));
     'check to see if the converted file already exists
-    testCSF$ := truncName$+".smr";
+    testCSF$ := truncName$+".smrx";
     if(FileList(dummyCSF$,0,testCSF$)) then
 		if VERBOSELOG%=1 then  PrintLog("In ConvertStimFiles:\tSpike2 file '%s' already exists, '%s' not converted\n", testCSF$, stimFileNames$[iCSF%]); endif
     else
 		if VERBOSELOG%=1 then   PrintLog("In ConvertStimFiles:\tConverting '%s' to ... ",stimFileNames$[iCSF%]); endif
-        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,2,errCSF%);
+        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,2,errCSF%,"dll=mswave;AppVer=Spike,802");
         if errCSF%=0 then
             PrintLog("'%s'\n",retCSF$);
         else
             PrintLog("FAILURE! couldn't convert file %s, error: %s\n",stimFileNames$[iCSF%],Error$(errCSF%));
         endif;
-    endif;
+    endif; 
 next;
-numStimFiles% := FileList(stimFileNames$[],0); 'loads stimFileNames$ with .smr versions
+numStimFiles% := FileList(stimFileNames$[],0); 'loads stimFileNames$ with .smrx versions
 end;
 '
 func UpdateStimParams%()
@@ -3005,7 +3006,7 @@ DlgCreate(titleSAS$,30,.1,(ncols%*spaceSize%),0,-1,0);
 for iSAS% := 0 to numStimFiles%-1 do
 	answersSAS%[iSAS%]:=enabledStims%[iSAS%]; 'load currently active stims into dialogue
 	checkName$:=stimFileNames$[iSAS%];
-	checkName$:=Left$(checkName$,InStr(checkName$,".smr")-1) + Print$(" (%.4f s)",stimTimes[iSAS%]);
+	checkName$:=Left$(checkName$,InStr(checkName$,".smrx")-1) + Print$(" (%.4f s)",stimTimes[iSAS%]);
 	'if doCurr% and iSAS%=searchInd% then 'doCurr for allowing the current stim to be a choice, not implementing yet
 	'	checkName$:=checkName$+" (*)";
 	'endif;
@@ -3662,11 +3663,11 @@ if SampleStop() = 0 then
 		'				
 		docase 'TODO: a bit obsolete...fix re: new file structure/multiple files
 		case qStopBlock% = 1 then
-			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+"_"+"block-part"+".smr",-1,0);
+			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+"_"+"block-part"+".smrx",-1,0);
 		case qStopBlock% = 2 then
-			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+"_"+"block"+".smr",-1,0);
+			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+"_"+"block"+".smrx",-1,0);
 		else				
-			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+".smr",-1,0);
+			retSRAS%:=FileSaveAs(Print$("Sub%sPen%02dSite%02dEpc%02dFile%02d_",subjectID$,penetrationNum%,recordingSiteNum%,epochNum%,datafilenumber%)+FileDate$(2,2,1,1,"-")+"+"+FileTime$(1,7,3,"-")+"_"+subjectID$+".smrx",-1,0);
 		endcase
 		'
 		if retSRAS% <> 0 then
@@ -3930,9 +3931,9 @@ else
 			truncName$ := FileName$(3)+FileName$(4);
 			key$ := Chr$(Asc(audioPWAKey$)+0);
 			stimsz%:=ChanData(chan%,stimData%[],0,MaxTime()); 'load stimulus into array stimData%[]
-			Draw(); 'Try to alleviate display hiccup
-			retPWC%:=PlayWaveCopy(key$, stimData%[0:stimsz%],0); 'upload data in stimData%[] to playwave area. Makes the display pause updating...
-			Draw(); 'Try to alleviate display hiccup
+            Draw(); 'Try to alleviate display hiccup
+            retPWC%:=PlayWaveCopy(key$, stimData%[0:stimsz%],0,0); 'upload data in stimData%[] to playwave area. Makes the display pause updating...
+            Draw(); 'Try to alleviate display hiccup
 			if retPWC% < 0 then
 				PrintLog("ERROR:\tCouldn't add the stim %s to the 1401.  error: %s\n",fn$,Error$(retPWC%));
 			else	
@@ -4490,7 +4491,7 @@ if MCnumMots%[MCtotnum%] <> 1 then
     View(MCouthandle%);
     'FilePathSet(MCstimPath$,0,1);
     FilePathSet(stimPath$);
-    MCstimFilenames$[MCtotnum%] := MCstimFilenames$[MCtotnum%] + ".smr";
+    MCstimFilenames$[MCtotnum%] := MCstimFilenames$[MCtotnum%] + ".smrx";
     retFSAMC% := FileSaveAs(MCstimFilenames$[MCtotnum%],-1,1);
     if retFSAMC% <> 0 then
         WarnDlg("Something went wrong saving the MC stim","Something went wrong saving the MC stim");
