@@ -49,7 +49,12 @@ proc HiLog()
 View(LogHandle()).Window(0,50,50,98,1);
 FrontView(LogHandle());
 end
-'
+
+func GetScriptPath$()
+
+return View(App(3)).FileName$(1) + "\\" + View(App(3)).FileName$(2)+ "\\";
+end
+
 func ResetBox()
 PL("\t'Resetbox' Started");
 var returnRB%:=-1;
@@ -58,7 +63,7 @@ currentSequencer$:=SampleSequencer$();
 oldSAF% := SampleAutoFile();
 
 '*******set up path variables 
-const seqfileRB$ := "D:\\S2scripts\\danS2Scripts\\working(read-only)\\resetbox_seq.pls"; 
+var seqfileRB$ := GetScriptPath$() + "resetbox_seq.pls"; 
 var handle%,ret%,seqret%,retSS%,retSW%;
 SampleClear();
 retSS% := SampleSequencer(seqfileRB$);    'set sequencer file

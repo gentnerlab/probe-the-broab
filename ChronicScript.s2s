@@ -1,25 +1,21 @@
-'20100427   DPK     Creating new Chronic Script that is Modular and easier to use
-'
+
 'FLAG REGISTRY: qhWaitingToJump%,qhWaitingToStartTrial%,qhInTrial%,qhWaitingForStimFinish%,qhWaitingForTrialFinish%,qhFinishTrial%,qhBehavOnly%,qhRecordingAndBehavior%,qhRecordingOnly%
 '
 'TODO save Log file incrementally
 '
-#include "include/chron_include.s2s"
+
+#include "include/chron_include.s2s" ' helper functions for chronic recording
+
 
 StartupScript();
-'
-'********************************************
-'****** START: SETUP GLOBAL VARIABLES  ******
-'********************************************
-'
+
+' SETUP GLOBAL VARIABLES
 if 1 then 'This lets us fold away the variable set up for ease of viewing while editing!
 	
 	const VERBOSELOG% := 0;  '1 = normal debugging; 2= time/filesize debugging; ; 3= handler flag debugging
 	var ltime%:=-1;
-	'
-	'+++++++++++++++
-	'***scriptvars***
-	'set IDs for toolbar buttons
+    
+	' set IDs for toolbar buttons
 	const HANDLERID% 			:= 0;
 	const FINISHEXPERIMENTID%	:= 1;
 	
@@ -46,38 +42,34 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	const CARID%				:= 38;
 	const SOFTREFID%			:= 39;
 	const SESVIEWID%			:= 40;
-	'***done: scriptvars***
-	'+++++++++++++++
-	'***pathvars***
+    
+	' define paths
 	const defaultFPS% := 2; '1=use testchron, 2=use crappy windows dialogue, 3=let user type in name of folder in c:/experiments/
-	const expPathRoot$      := "D:\\experiments\\raw\\";
-	const stimLibPath$      := "D:\\experiments\\stimlib\\";
-	const chronNOseq$       := "D:\\S2scripts\\danS2Scripts\\chron_seq_NeurOnly.pls";
-	const chronNBseq2AC$    := "D:\\S2scripts\\danS2Scripts\\chron_seq_2ac_wcue.pls";
-	const chronNBseq2ACPS$  := "D:\\S2scripts\\danS2Scripts\\chron_seq_2ac-peckstop.pls";
-	const chronNBseqGNG$    := "D:\\S2scripts\\danS2Scripts\\chron_seq_gng.pls";
-	const chronNBseqGNGPS$  := "D:\\S2scripts\\danS2Scripts\\chron_seq_gng-peckstop.pls";
-	var chronNBseq$ := chronNBseq2AC$; '2ac is default (see DoSubjectInfo%() for switch)
+	var expPathRoot$      := "D:\\experiments\\raw\\";
+	var stimLibPath$      := "D:\\experiments\\stimlib\\";
+    var seqPath$          := GetScriptPath$() + "sequencer\\";
 	var seqfile$;
-	' 
 	var subjectpath$ := "";
 	subjectpath$ := PickSubjectPath$(defaultFPS%);
-	
-	'
 	FilePathSet(subjectpath$);
 	PrintLog("Subject path (and current path) set to: %s\n\n", subjectpath$);
 	var stimPath$		:= subjectpath$+"stims\\";
 	var dataPathRoot$ 	:= subjectpath$+"data\\";
 	var dataPathPenetration$,dataPathRecordingSite$,dataPathEpoch$;
 	var subjectID$	 	:=Left$(Right$(subjectpath$,Len(subjectpath$)-19),Len(Right$(subjectpath$,Len(subjectpath$)-19))-1); 'TODO: fix and make robust to changes in path length
-	'***done: pathvars***
-	'+++++++++++++++
-	'***filevars***
-    const NUMMAXIMUMTICKS% := -1; ' with v8 64bit .smrx files, no upper bound.
-	'const NUMMAXIMUMTICKS% := 2147483647; 'Maximum number of file time ticks possible (see Spike2 manual 4-9)
-	const MAXCHANSPERFILE% 		:= 400; 'default is 32, max for spike 6 is 400
+    
+    ' define available sequencer files
+	var chronNOseq$       := seqPath$ + "chron_seq_NeurOnly.pls";
+	var chronNBseq2AC$    := seqPath$ + "chron_seq_2ac_VR.pls";
+	var chronNBseq2ACPS$  := seqPath$ + "chron_seq_2ac-peckstop.pls";
+	var chronNBseqGNG$    := seqPath$ + "chron_seq_gng.pls";
+	var chronNBseqGNGPS$  := seqPath$ + "chron_seq_gng-peckstop.pls";
+	var chronNBseq$ := chronNBseq2AC$; '2ac is default (see DoSubjectInfo%() for switch)
+
+	' file variables
+    const NUMMAXIMUMTICKS% := -1; ' with v8 64bit .smrx files, no upper bound. 2147483647 for v7
+	const MAXCHANSPERFILE% 		:= 400; 'default is 32, max for spike 6+ is 400
 	const MAXFILEMINS%			:= -1; 'set to <0 if you want to programmatically control based on sampling frequency etc. See CheckFileSizeLengthNTOD%()
-	'const MAXFILEMINS%			:= 15; 'set to <0 if you want to programmatically control based on sampling frequency etc. See CheckFileSizeLengthNTOD%()
 	const audioPWAKey$          := "a"; 'this is label for play wave area.
 	const trialAvailKeyCue$     := "S"; 'this jumps the sequencer to a place where it is ready to do a trial and turns on the cue light
 	const trialPauseKey$        := "P"; 'this jumps the sequencer to a place where it is Paused
@@ -87,11 +79,9 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	ArrConst(firsttimestampcodes%[],243); 'this will be the unique code for the first timestamp on the textmark channel
 	ArrConst(timestampcodes%[],244); 'this will be the unique code for timestamps on the textmark channel
 	var once%:=1; 'I think this is for the first trial only (TODO: check this and rename with more descriptive name)
-	'***done: filevars***
-	'+++++++++++++++
-	'***ADCvars***
+
+	' ADC variables
 	const MAXWAVCHANS%			:= 32;
-	'
 	var nWavChans%;
 	var savedWFChans%[MAXWAVCHANS%+1];
 	var currChanMap%[MAXWAVCHANS%+4]; '+1 for size at index 0 and +3 for crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
@@ -102,70 +92,55 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	GainList$[2] := "5";
 	GainList$[3] := "10";
 	var whichGainCtrl% 			:= 3; 'This value will be the DEFAULT See AdjustGains%, 0=1x, 1=2x, 2=5x, 3=10x (given by GainList$)
-	'
-	'var sampleRate%         	:= 18975; 'this is overkill, hardware filter set at 300Hz-8000Hz '18975 works well for 17wf chans, lets record for ~1:50
-	'var sampleRate%         	:= 25000;
 	var sampleRate%         	:= 31250;
 	var BehavOnlysampleRate%    := 40000; 'To record BOS/whatever else is going on in box (40K might be too high, but can easily delete Behav only waveform chans if no bos on em
 	var usecpertime;
 	var timeperADC;
 	var seqPerMs;
-	'done: ***ADCvars***
-	'+++++++++++++++
-	'***audioIOvars***
-	'const REQUESTEDaudioOutRate%          := 44100; 'The actual rate will be 43859.649123 (corresponding to an output interval of 22.8 uSec, a hardware limitation).
-	'(The hardware can only output intervals that are a multiple of 0.2usec) Instead of dealing with this all, I've decided to resample all of my stimuli to 
-	'40,000Hz before Spike2 ever sees them. As this corresponds to an exact integer interval (25usec), there should be no problem at all in reading it into Spike2, 
-	'playing it back at the desired rate, and reading it into Matlab later. Spike2 could really use some better documentation about this.
-	const REQUESTEDaudioOutRate%          := 40000;
+
+	' Audio IO variables 
+	'     The 1401 hardware can only output intervals that are a multiple of 0.2usec. Instead of dealing with this all, we need to resample all stimuli to 
+	'     40,000Hz before Spike2 ever sees them. As this corresponds to an exact integer interval (25usec), there should be no problem at all in reading it into Spike2, 
+	'     playing it back at the desired rate, and reading it into Matlab later. 
+    '     (Spike2 could really use some better documentation about this.)
+	const REQUESTEDaudioOutRate% := 40000;
 	if REQUESTEDaudioOutRate% <> 40000 then
 		WarnDlg("REQUESTEDaudioOutRate == %d NOT 40000","REQUESTEDaudioOutRate == %d NOT 40000");
 	endif
-	'
 	var REALaudioOutRate; 'This will hold the value returned by PlayWaveSpeed()
-	'
-	var maxStimMins%			:= 10; 'only used to constrain the buffer size.
-	''''^Limit of Power 1401 with 256Mb RAM (ChronicRig) @ 44100Hz is around 18 mins. If over, script will crash on 'PlayWaveCopy' and you will need to restart spike2, not just the script, to fix it.
+	var maxStimMins% := 10; 'only used to constrain the buffer size.
+	' ^Limit of Power 1401 with 256Mb RAM @ 44100Hz is around 18 mins. 
+    ' If over, script will crash on 'PlayWaveCopy' and you will need to restart spike2, not just the script, to fix it.
 	if maxStimMins% > 18 then
 		WarnDlg("Play wave buffer set too large.",Print$("You requested a %d min buffer.\nThe empirical limit is 18 mins. Don't ask why, I don't know.\nResetting to 18 min audout buffer.",maxStimMins%));
 		maxStimMins%:=18;
 	endif
-	'
-	var audBuffSize%				:= REQUESTEDaudioOutRate%*60*maxStimMins%; 'in sampling units
+	var audBuffSize% := REQUESTEDaudioOutRate%*60*maxStimMins%; 'in sampling units
 	var stimsz%; 'get from chandata, use to calc exact time to send to sequencer to give exact num dat points
 	var stimtimeSec; 'calc from stimsz% and REALaudioOutRate to calc seq steps to send to sequencer
-	'
 	var micport% := 31;
 	var BOmicchannel% := 25;
 	var dosavemicchannelduringBO% := 0; 'if this is set to 1, port 31 is recorded and saved along with the marker data (default is 0 to save disk space) 
-	'***done: audioIOvars***
-	'+++++++++++++++
-	'***displayandhandlevars***
+    
+	' display and handle vars***
 	var swXLow:=1.0, swYLow:=0.0,swXHigh:=100.0,swYHigh:=100.0;
 	var ymin[MAXWAVCHANS%+1], ymax[MAXWAVCHANS%+1];
 	ArrConst(ymin, -1.0);ArrConst(ymax, 1.0);
 	var optimizey% :=0;
 	var lastEpochView$ := "";
-	'
 	var datahandle%;
-	'
 	var opDatHandle%:=-1;
 	var opDatName$:="";
-	'
 	var doAllTrialsFile% := 1;
 	var AllTrialsHandle%:=-1;
 	var AllTrialsName$:= subjectpath$+subjectID$+".AllTrials";
-	'
 	var subjectInfoName$:=subjectpath$+subjectID$+".SubjectInfo";
 	var subjectInfoHandle% := -1;
-	'
 	var currWFChan%[17],currVChan%[17],currCARChan%[17];
 	currCARChan%[0]:=0;
 	var numCARs%:=0;
-	'***done: displayandhandlevars***
-	'+++++++++++++++
-	'***timeofdayvars***
-	'Setup TOD (time of day) loop variables
+
+	' time-of-day (TOD) loop variables
 	var dontuseTODStartStop% := 0;
 	var secondsSinceMinute%,minutessincemidnight%;
 	var beginHours%:= 8;
@@ -181,23 +156,19 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	endif
 	var qisNight% := 0;
 	var wentToSleep%:=0;
-	'end TOD loop setup
 	PrintLog("\nStart of Day Time: %d:%d.\nEnd of Day Time: %d:%d\n\n\n",beginHours%,beginMins%,endHours%,endMins%); 'put here in case cancel button is hit on setupsubjectpath
-	'***done: timeofdayvars***
-	'+++++++++++++++
-	'***fileinfovars***
+    
+	' file info variables
 	var fDate$      :=Date$(2,2,1,1,"-"); 
 	var fTime$      :=Time$(1,7,0,":");
 	var FileInfo$   := "Date:"+fDate$+"Time:"+fTime$; 'fileinfo$ will be inserted into the file comments using filecomment$()
-	'***done: fileinfovars***
-	'+++++++++++++++
-	'***penetrationvars***
+    
+	' penetration variables
 	var penetrationInfo$ := "Null";
 	var penetrationNum%;
 	var currpencomments$ := "";
-	'***done: penetrationvars***
-	'+++++++++++++++
-	'***electrodevars***
+    
+	' electrode variables
 	var electrodeInfo$ := "Null";
 	var currElectrode$ := "";
 	var infoFileTrodeType%;
@@ -214,26 +185,23 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var eTrodeComments$:="";
 	var eTrodeImpedance$:="";
 	var eTrodeID$:="";
-	'***done: electrodevars***
-	'+++++++++++++++
-	'***sitevars***
+    
+	' site variables
 	var recordingSiteInfo$:="Null";
 	var recordingSiteNum%;
 	var currsitecomments$ := "";
-	'***done: sitevars***
-	'+++++++++++++++
-	'***epochvars***
+    
+	' epoch variables
 	var epochInfo$:="Null";
 	var epochNum%:=0;
 	var currepochcomments$ := "";
 	var datafilenumber% := 0;
 	var currentEpochStartDateTime$ := "";
-	'***done: epochvars***
-	'+++++++++++++++
-	'***stimvars***
-	const MAXSTIMS%             := 1000;
-	const MAXMCSTIMS%             := 1000000;
-	const stimExt$              := ".wav";
+    
+	' stimuli variables
+	const MAXSTIMS% := 10000;
+	const MAXMCSTIMS% := 1000000;
+	const stimExt$ := ".wav";
 	var numStimFiles%, stimFileNames$[maxStims%], searchStimsEnabled%[maxStims%],blockStimsEnabled%[maxStims%],stimTimes[maxStims%];
 	var dolongstim%:=0, stimfh%:=-1, startT, stopT, skip;
 	var currentStimLength:=0.0, currentStimName$:="",currentStimClass%,currentStimPcntReinf%,currentStimPcntTo%;
@@ -241,7 +209,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var maxstimlength;
 	var relE,relENO;
 	var tmcode%[4]; 'textmark codes: 0=stimcode,1=stimclass,2=correctiontrial(1=correction,0=not correction),3=currently unused
-	'{during the MC task, tmcode%[2] used to be used to indicate stimulus type - I think it interferred with correction trial encoding, but I don't think I ever used correction trials so no big deal.}
+	'DK: {during the MC task, tmcode%[2] used to be used to indicate stimulus type - I think it interferred with correction trial encoding, but I don't think I ever used correction trials so no big deal.}
 	ArrConst(tmcode%[],0);
 	var stimClasses%[MAXSTIMS%],stimPctPres[maxStims%],stimPctReinf%[maxStims%],stimPctTo%[maxStims%],stimCodes%[maxStims%];
 	var totpres%:=0;
@@ -250,13 +218,12 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	ArrConst(desPctPres[],-1.0);
 	ArrConst(desPctReinf%[],-1);
 	ArrConst(desPctTo%[],-1);
-	'***done: stimvars***
-	'+++++++++++++++
-	'***stimselectionvars***
+    
+	' stimulus selection variables
 	const MAXBLOCKTRIALS%       := 10000;
 	var blockPlaylist%[MAXBLOCKTRIALS%];
 	ArrConst(blockPlaylist%[],-1);
-	var numBlockRepeats% := 5;
+	var numBlockRepeats% := 1;
 	const MAXREPEATS%:=999;
 	var blockTrialNum%:=0;
 	var blockPos%;
@@ -266,36 +233,34 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var trialFailures%  := 0;
 	var totalRunSecs    := 0.0;
 	var searchInd%:=-1;
-	'***done: stimselectionvars***
-	'+++++++++++++++
-	'***trialvars***
+    
+	' trial variables
 	var behType$    := "2AC"; 'this should actually be a subject variable
 	var RESPWIN     := 2.0;   'response window duration in seconds
-	var FEED        := 2.0;		'feed duration in seconds
-	var TIMEOUT     := 10.0;	'timeout duration in seconds
-	var ITI         := 2.0; 		'intertrial interval in seconds
+	var FEED        := 2.0;	  'feed duration in seconds
+	var TIMEOUT     := 10.0;  'timeout duration in seconds
+	var ITI         := 2.0;   'intertrial interval in seconds
 	var ITINO;
-	var MINITINO    := 1.0;  'minimum intertrial interval in seconds for neural recording only
-	var MAXITINO    := 3.0; 	'maximum intertrial interval in seconds for neural recording only
-	var relS        := -4; 	'pretrigger save seconds
+	var MINITINO    := 1.0;   'minimum intertrial interval in seconds for neural recording only
+	var MAXITINO    := 3.0;   'maximum intertrial interval in seconds for neural recording only
+	var relS        := -4; 	  'pretrigger save seconds
 	var correctionTrialsOn% := 0; 'default is no correction trials (set in SEsetupStimSelectStyle%()
-	var doCorrectionTrial%  := -1;
+	var doCorrectionTrial%  := 0;
 	var doFeedCorrectionTrials% := 0;
 	var peckStopOn%         := 0;
 	var currtrialstarttime := -1.0;
 	var trialoutcome%[5];  '0 = accuracy, 1 = class , 2 = correction, 3 = selection, 4 = reinforced
 	ArrConst(trialoutcome%,-1);
-	'***done: trialvars***
-	'+++++++++++++++
-	'***trialschedulingvars***
+    var feedRatioMax%         := 1; ' 
+    
+	' trial scheduling variables
 	var qTrialAvailability% := 1;        '0 = trials unavailable, 1 = trials available
 	var trialAvailablityMins%[2];
 	trialAvailablityMins%[0] := 0;        'off minutes
 	trialAvailablityMins%[1] := 99999;    'on minutes
 	var lastAvailabilityCycleStartMSM% := -1; 'will denote the time (in minutes since midnight) of the last trial availability cycle start time
-	'***done: trialschedulingvars***
-	'+++++++++++++++
-	'***protocolvars***
+    
+	' protocol variables
 	var protocoltype$ := "normal";
 	var protocolmode% := -1; 'initialized to -1 so that if the protocol doesn't update it, it gets passed to PickMode()
 	var protocolstimselectionstyle% := -1;
@@ -303,9 +268,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var protFileFullName$ := "none";
 	var stimFileName$;
 	var stimFileFullName$ := "";
-	'***done: protocolvars***
-	'+++++++++++++++
-	'***setstimvars***
+    
+	' setstim variables
 	var qdosetstims% := 0;
 	var qneednewset%:=-1;
 	var qusepreviousset%:=-1;
@@ -317,6 +281,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	ssCriterionCorrect%[1] := 15;
 	ssCriterionCorrect%[2] := 15;
 	ssCriterionCorrect%[3] := 0;
+	ssCriterionCorrect%[4] := 0;
 	ssCriterionCorrect%[4] := 0;
 	ssCriterionCorrect%[5] := 15;
 	ssCriterionCorrect%[6] := 15;
@@ -343,9 +308,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currsetstimparamsfile$ := "D:\\experiments\\stimlib\\defaultsetstimsparamsfile.m";
 	var mastersetstimNum%:=0;
 	var setstimNum%:=0;
-	'***done: setstimvars***
-	'+++++++++++++++
-	'***MCstimvars***
+    
+	' MCstim variables
 	var qMC% := 0;
 	var MCmaxnummots%:=0,MCminnummots%:=0;
 	var MCclassoneMaxnummots%:=0,MCclassonePctReinf%:=0,MCclassonePctTo%:=0;
@@ -357,9 +321,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var MCstimClasses%[MAXMCSTIMS%];   'This will hold the class of each created MC stim (aligns with MCstimFilenames$)
 	var MCstimFilenames$[MAXMCSTIMS%];
 	var MCnumMots%[MAXMCSTIMS%];
-	'***done: MCstimvars***
-	'+++++++++++++++
-	'***analysis/checkvars***
+    
+	' analysis/check variables
 	var tempdatafilename$,tempdatafilepath$;
 	var currSeekTime        := -1;
 	var lastEventTime       := -1;
@@ -369,10 +332,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	'secondsBTSizeChecks - if too big will slow down the code, too little and you might miss going over the size limit
 	'w/17 wf channels @25Khz, 10 mins ~500Mb, therefore checking size every 30 seconds should give ~25Mb resolution
 	var opData%[MAXSTIMS%][6]; 'Each row is a diff stim, columns are: num presentations, num correct, num feeds, num incorrect, num TOS, num no responses
-	'***done: analysis/checkvars***
-	'+++++++++++++++
-	'***flagvars***
-	'flag variables, I'll denote with a prefixed 'q' and wikicaps
+    
+	' flag variables, denoted with a prefixed 'q' and CamelCase
 	var qSearching%         := 0;
 	var qLoop%              := 0;
 	var qNeedNewBlock%        := 0;
@@ -382,34 +343,22 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var qPausedBlock%       := 0;
 	var qStopBlock%         := 0;
 	var qProtocolFileSetup%  := 0;
-	'
-	'handlerstuff, prefix ='qh'
+    
+	' handler variables, denoted with a prefixed 'qh' and CamelCase
 	var qhRecordingAndBehavior% := 0;
 	var qhRecordingOnly%        := 0;
 	var qhBehavOnly%            := 0;
-	'
 	var qhInTrial%				:= 0;
 	var qhInEpoch%				:= 0;
-	
 	var qhWaitingToJump%        := 0;
 	var qhWaitingToStartTrial%  := 0;
 	var qhWaitingForStimFinish% := 0;
 	var qhWaitingForTrialFinish%:= 0;
 	var qhFinishTrial%          := 0;
-	'***done: flagvars***
-	'+++++++++++++++
 	'
 endif
-'
-'********************************************
-'****** END:   SETUP GLOBAL VARIABLES  ******
-'********************************************
-'
-'
-'********************************************
-'****** START: RUN THE SCRIPT      **********
-'********************************************
-'
+
+'RUN THE SCRIPT
 FilePathSet(dataPathRoot$,0,1);
 SetupToolbar();
 ToolbarState("WaitInToolbar");
@@ -417,24 +366,10 @@ PL("Entering Toolbar");
 Toolbar("toolbar running",1+2+4+8+16+32+64+128+256+512,0);
 PL("Exiting Toolbar");
 halt; 'the script is finished
-'
-'********************************************
-'****** END:   RUN THE SCRIPT      **********
-'********************************************
-'
-'************************************************************************************************************************************************
-'************************************************************************************************************************************************
-'************************************************************************************************************************************************
-'
-'********************************************
-'******  FUNCTIONS AND PROCEDURES  **********
-'********************************************
-'
-'=======================================================================================================
-'***SETUP FUNCTIONS AND UTILITIES***
-'
-'
-'***SETUP***
+
+' FUNCTIONS AND PROCEDURES
+
+' SETUP 
 proc SetupToolbar()
 ToolbarSet(HANDLERID%,"",Handler%);
 ToolbarSet(FINISHEXPERIMENTID%,"Finish experiment|0x1b|<esc>",QuitScript%);
@@ -811,12 +746,7 @@ if (timeSinceLastSizeCheck > secondsBTSizeChecks or lastSizeCheckTime = -1) then
 		return 1;
 	endif
 endif
-'
-'if CheckOkFileLength%(MAXFILEMINS%) <> 1 then  'check every loop round handler (while not in a trial)
-'	StopRecordingandSave%(0);
-'	return 1;
-'endif
-'
+
 docase
 case qhWaitingToJump% = 1 then
 	return HWaitingToJump%();
@@ -854,40 +784,7 @@ else
 	endif
 endif
 end
-'
-'func CheckOkFileLength%(maxmins%)
-'var fudge := 0.975;
-'var maxMinutesPossible := NUMMAXIMUMTICKS% * usecpertime * 1.0e-6 / 60.0;
-'var maxMinutesDesired := Floor(maxMinutesPossible * fudge);
-'var currhandle%;
-''
-'if SampleStatus() <> 2 then 'sampling's not happening
-'	PrintLog("ERROR: this function should never be called if not sampling.\nHALTING.");
-'	return -1;
-'else
-'	currhandle% := View();
-'	View(datahandle%);
-'	'Check total file time
-'	if maxmins% < 0 then 'use programmatic max time (maxMinutesDesired)
-'		if MaxTime() > maxMinutesDesired*60.0 then
-'			View(currhandle%);
-'			return 0;
-'		else 
-'			View(currhandle%);
-'			return 1;
-'		endif
-'	else
-'		if MaxTime() > maxmins%*60.0 then
-'			View(currhandle%);
-'			return 0;
-'		else 
-'			View(currhandle%);
-'			return 1;
-'		endif
-'	endif          
-'endif
-'end
-'
+
 func HWaitingToJump%()
 if VERBOSELOG%=1 then PL("in: HWaitingToJump%"); endif
 var trialAvailableTime; 'don't know if I'll ever need this, but don't forget that it exists
@@ -995,6 +892,7 @@ if currentStimLength>0.0 then
 	SampleSeqVar(13,timeoutSeqSteps%);'send sequencer timeoutSeqSteps% 
 	respwinSeqSteps%:=RESPWIN/seqPerMs*1000; 'should give number of seq ticks in RESPWIN seconds
 	SampleSeqVar(20,respwinSeqSteps%);'send sequencer respwinSeqSteps% 
+    SampleSeqVar(29,feedRatioMax%);'send sequencer upper bound for variable ratio reinforcement
 	if VERBOSELOG% then PL("Sequencer Loaded with Operant Variables\n"); endif	
 	'
 	'update sequencer with current trial's values
@@ -1020,7 +918,7 @@ if currentStimLength>0.0 then
 			endif
 		endif        
     case qDoBlocks% then
-		if qhRecordingAndBehavior% then
+		if qhRecordingAndBehavior% or qhBehavOnly% then
 			PL(Print$("Running Block... Stim %s loaded for block %d trial %d",currentStimName$,blockNum%,blockPos%+1));
 			'var hours%,mins%,secs%;
 			'HoursMinsSecs(totalRunSecs*(1.0-((blockPos%+1.0)/totBlockTrials%)),hours%,mins%,secs%); 'totalrunsecs set in select stims
@@ -1726,6 +1624,10 @@ else
 			readret% := read(protInstruct$,tmpclass%,tmpI%);
 			desPctTo%[tmpclass%] := tmpI%;
 			'
+        case InStr(protInstruct$,"variableratiomax") <> 0 then
+			MoveBy(0,0,-1);
+			readret% := read(protInstruct$,feedRatioMax%);
+			'
 		case InStr(protInstruct$,"respwin") <> 0 then
 			MoveBy(0,0,-1);
 			readret% := read(protInstruct$,RESPWIN);
@@ -1757,7 +1659,11 @@ else
 		case InStr(protInstruct$,"stimfilename") <> 0 then
 			MoveBy(0,0,-1);
 			readret% := read(protInstruct$,stimFileFullName$);
-			'			
+			'		
+		case InStr(protInstruct$,"dosavemicchannel") <> 0 then
+			MoveBy(0,0,-1);
+			readret% := read(protInstruct$,dosavemicchannelduringBO%);	
+            '
 		case InStr(protInstruct$,"currsetstimparamsfile") <> 0 then
 			MoveBy(0,0,-1);
 			readret% := read(protInstruct$,currsetstimparamsfile$);
@@ -2689,6 +2595,11 @@ return 1;
 end
 '
 func LoadStimFileStims%(&stimulusfilename$)
+' Loads stims & stim data from a stim file. Adds stim info to global variables & returns 1 if successful or -1
+' if there is an error.
+'
+' each line in a stim file is a single stimulus, with the following fields delimited by commas or tabs:
+'     "file_name.wav"(str),stim_class(int),presentation_frequency(float),reinforcement_rate(float),timeout_rate(float)
 var LSFsuccess% := 1,numPStims%:=-1,stimHandle%;
 var currviewLSFS% := View();
 InitializeStimVariables();
@@ -2734,12 +2645,12 @@ for iSPS% := 0 to numStimFiles%-1 do
 		if VERBOSELOG%=1 then PrintLog("In LoadStimFileStims%:\tSpike2 file '%s' already exists, and was not converted\n", stimFileNames$[iSPS%]); endif
 	else
 		if VERBOSELOG%=1 then PrintLog("In LoadStimFileStims%:\tLoading '%s' from StimLib and Converting to ... ",stimFileNames$[iSPS%]); endif
-		retSPS$ :=FileConvert$(stimLibPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave;AppVer=Spike,802");
+		retSPS$ :=FileConvert$(stimLibPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave");
 		if errSPS%=0 then
 			PrintLog("'%s'\n",retSPS$);
 			stimFileNames$[iSPS%]:=testSPS$;
 		else     'if can't find it in the stimlib then look in the subject's stim path
-			retSPS$ :=FileConvert$(stimPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave;AppVer=Spike,802");
+			retSPS$ :=FileConvert$(stimPath$+stimFileNames$[iSPS%],stimPath$+truncNameSPS$,2,errSPS%,"dll=mswave");
 			if errSPS% = 0 then
 				PrintLog("'%s'\n",retSPS$);
 				stimFileNames$[iSPS%]:=testSPS$;
@@ -2769,7 +2680,7 @@ for iCSF% := 0 to n%-1 do
 		if VERBOSELOG%=1 then  PrintLog("In ConvertStimFiles:\tSpike2 file '%s' already exists, '%s' not converted\n", testCSF$, stimFileNames$[iCSF%]); endif
     else
 		if VERBOSELOG%=1 then   PrintLog("In ConvertStimFiles:\tConverting '%s' to ... ",stimFileNames$[iCSF%]); endif
-        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,2,errCSF%,"dll=mswave;AppVer=Spike,802");
+        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,2,errCSF%,"dll=mswave");
         if errCSF%=0 then
             PrintLog("'%s'\n",retCSF$);
         else
@@ -2996,17 +2907,23 @@ end
 '
 '
 var rptsItemnum%,rptstxtItemnum%,maxTItemnum%,totTItemnum%,toLog$;
-func SelectActiveStims%(enabledStims%[],titleSAS$,qDoBlocks%) 'TODO: now set up for search stims or block stims, not yet for rand stims (will need a bit of work, since rand plist array is diff)
+func SelectActiveStims%(enabledStims%[],titleSAS$,qDoBlocks%) 
+' Presents dialog to select stims for a search or block
+' TODO: now set up for search stims or block stims, not yet for rand stims (will need a bit of work, since rand plist array is diff)
 var iSAS%,ySAS%,xSAS%,retSAS%;
-var ncols%:=4,spaceSize%:=30,checkName$;
+var ncols%:=1,spaceSize%:=30,checkName$;
 var answersSAS%[numStimFiles%];
 
-DlgCreate(titleSAS$,30,.1,(ncols%*spaceSize%),0,-1,0);
+ncols% := numStimFiles% / 4 + 1;
+if ncols% < 4 then ncols% := 4 endif;
+if ncols% > 10 then ncols% := 10 endif;
+
+DlgCreate(titleSAS$,0,.1,(ncols%*spaceSize%),0,-1,0);
 
 for iSAS% := 0 to numStimFiles%-1 do
 	answersSAS%[iSAS%]:=enabledStims%[iSAS%]; 'load currently active stims into dialogue
 	checkName$:=stimFileNames$[iSAS%];
-	checkName$:=Left$(checkName$,InStr(checkName$,".smrx")-1) + Print$(" (%.4f s)",stimTimes[iSAS%]);
+	checkName$:=Left$(checkName$,InStr(checkName$,".smrx")-1) + Print$("|%.4f s",stimTimes[iSAS%]);
 	'if doCurr% and iSAS%=searchInd% then 'doCurr for allowing the current stim to be a choice, not implementing yet
 	'	checkName$:=checkName$+" (*)";
 	'endif;
@@ -3185,9 +3102,10 @@ if keyCodes%[0] = 83 then '"S"
 			endcase
 			
 			if correctionTrialsOn% = 1 then
-				doCorrectionTrial% := -1;	'reset correction trial status
+				doCorrectionTrial% := 0;	'reset correction trial status
 				View(opDatHandle%).Print("%4.2f:\tCorrection trials turned on\n",opTime);
 			endif
+            
 		case opCodes%[0] = 102 then '"f"
 			View(opDatHandle%).Print("%4.2f:\tCorrect but no feed\n",opTime);
 			opData%[tmCodes%[0]][1]+=1; 'increment correct
@@ -3203,7 +3121,7 @@ if keyCodes%[0] = 83 then '"S"
 				halt;				
 			endcase
 			if correctionTrialsOn% = 1 then
-				doCorrectionTrial% := -1;	'reset correction trial status;
+				doCorrectionTrial% := 0;	'reset correction trial status;
 				View(opDatHandle%).Print("%4.2f:\tCorrection trials turned off\n",opTime);
 			endif
 		case opCodes%[0] = 125 then '"}"
@@ -3268,7 +3186,7 @@ if keyCodes%[0] = 83 then '"S"
 			trialoutcome%[4] := 0;  'mark 0 for reinforced
 			if InStr(behType$,"GNG")<>0 then
 				if stimClasses%[currStim%] = 2 then
-					doCorrectionTrial% := -1;	'reset correction trial status;
+					doCorrectionTrial% := 0;	'reset correction trial status;
 				endif
 			endif
 		case opCodes%[0] = 40 then '"("
@@ -4157,62 +4075,6 @@ return nextStim%; 'TODO error checking
 end
 '
 '
-func InitBlockBACKUP%()
-var initBlockSuccess%:=0;
-var blockFiles%[numStimFiles%],numActiveFiles%:=0;
-var blockPos%,iIB%,iIB2%,iIB3%,jIB2%,iIB4%,swap1%,swap2%,swapTemp%;
-
-if SelectActiveStims%(blockStimsEnabled%[],"Select Block Stims",1) = 2 then
-	return 2; 'Block Setup Cancelled
-endif;
-
-'make blockPlaylist below
-
-for iIB% := 0 to numStimFiles%-1 do
-	if blockStimsEnabled%[iIB%] then
-		blockFiles%[numActiveFiles%]:=iIB%;
-		numActiveFiles%:=numActiveFiles%+1;
-	endif;
-next;
-
-totBlockTrials%:=0;
-for iIB2% := 0 to numActiveFiles%-1 do
-	for jIB2% := 0 to numBlockRepeats%-1 do
-		blockPos% := iIB2%*numBlockRepeats%+jIB2%;
-		blockPlaylist%[blockPos%] := blockFiles%[iIB2%];
-		totBlockTrials%+=1;
-		'PrintLog("item %d is %d\n",pos%+1,blockPlaylist%[pos%]);
-    next;
-next;
-'PrintLog(blockPlaylist%[]);
-
-RecordRandSeed(); 'seeds the random number generator and records the seed value
-
-for iIB3% := 1 to NUMSHUFFLES% do
-	swap1% := Trunc(Rand()*numActiveFiles%*numBlockRepeats%);
-	swap2% := Trunc(Rand()*numActiveFiles%*numBlockRepeats%);
-	swapTemp% := blockPlaylist%[swap1%];
-	blockPlaylist%[swap1%] := blockPlaylist%[swap2%];
-	blockPlaylist%[swap2%] := swapTemp%;
-next;
-PL("Block Successfully set up");
-ToolbarEnable(SELECTACTIVESTIMSID%,0);
-ToolbarEnable(STOPRECID%,0);
-ToolbarEnable(PAUSEBLOCKID%,1);
-ToolbarEnable(STOPBLOCKID%,1);
-PrintLog(toLog$);
-PrintLog("\nBlock Playlist (stimcodes):");
-for iIB4% := 0 to totBlockTrials%-1 do
-	PrintLog("%d,",blockPlaylist%[iIB4%]);
-next;
-PrintLog("\n\n");
-blockNum%+=1;
-blockTrialNum%:=0;
-initBlockSuccess% := 1;
-return not initBlockSuccess%
-end
-'
-'
 func InitBlock%(qAskUserBlockParams%)
 var initBlockSuccess%:=0;
 var blockFiles%[numStimFiles%],numActiveFiles%:=0;
@@ -4253,7 +4115,7 @@ for iIB3% := 1 to NUMSHUFFLES% do
 next;
 PL("Block Successfully set up");
 ToolbarEnable(SELECTACTIVESTIMSID%,0);
-ToolbarEnable(STOPRECID%,0);
+ToolbarEnable(STOPRECID%,1);
 ToolbarEnable(PAUSEBLOCKID%,1);
 ToolbarEnable(STOPBLOCKID%,1);
 PrintLog(toLog$);
