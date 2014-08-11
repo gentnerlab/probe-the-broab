@@ -3324,7 +3324,7 @@ if AllTrialsHandle% = -1 then    'open alltrials file
 			halt;		
 		endif
 		PrintLog("%s:\tCreated AllTrials File for %s\n",GetTimeStamp$(),subjectID$);
-		Print("##Date,Time,Penetration,Site,Epoch,NeuralRecording,BehavioralRecording,StimClass,Correction,ResponseSelection,ResponseAccuracy,Reinforced,StimName,ProtocolFile,StimulusFile##\n");
+		Print("Date,Time,Penetration,Site,Epoch,NeuralRecording,BehavioralRecording,StimClass,Correction,ResponseSelection,ResponseAccuracy,Reinforced,StimName,ProtocolFile,StimulusFile\n");
 		View(AllTrialsHandle%).FileSaveAs(AllTrialsName$,1);
 		FilePathSet(currPath$);
 	endif
@@ -3346,11 +3346,11 @@ endif
 if qhRecordingAndBehavior% or qhBehavOnly% then
 	behaviorboolean%:=1;
 endif
-var ATstim$:=Left$(stimFileNames$[currStim%],Len(stimFileNames$[currStim%])-4);
+var ATstim$:=Left$(stimFileNames$[currStim%],Len(stimFileNames$[currStim%])-5);
 View(AllTrialsHandle%);
 'write to it
 Print("%s,%s,%d,%d,%d,",ATdate$,ATtime$,penetrationNum%,recordingSiteNum%,epochNum%);
-Print("%d,%d,%d,%d,%d,%d,%d,%s\n",neuralboolean%,behaviorboolean%,trialoutcome%[1],trialoutcome%[2],trialoutcome%[3],trialoutcome%[0],trialoutcome%[4],ATstim$);
+Print("%d,%d,%d,%d,%d,%d,%d,%s,%s,%s\n",neuralboolean%,behaviorboolean%,trialoutcome%[1],trialoutcome%[2],trialoutcome%[3],trialoutcome%[0],trialoutcome%[4],ATstim$,protFileName$,stimFileName$);
 'save it
 View(AllTrialsHandle%);
 FileSaveAs(AllTrialsName$,1,1);
