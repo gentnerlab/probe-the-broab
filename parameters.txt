@@ -1,0 +1,60 @@
+## general parameters
+# note: if not filled in, some of these revert to defaults, while others prompt for a choice in a dialog.
+protocolmode:
+	neuronly/recordonly
+	neurbehav/behavandrecord
+	behavonly
+protocoltype
+	(optional. sets flags for specific behavioral protocols)
+	mcrand
+	mcblock
+	setstims
+	normal
+protocolstimselectionstyle:
+	search (loop in order)
+	block (pseudo-random order, at least n repeats)
+	random (presentation probability given by protocol file or default values)
+peckstopon
+correctiontrialson
+dofeedcorrectiontrials
+trialsavailablecycleonminutes
+trialsavailablecycleoffminutes
+despctpres
+despctreinf
+despctto
+respwin
+feed
+timeout
+iti
+inino
+maxitino
+minitino
+stimfilename
+beginhours
+beginmins
+endhours
+endmins
+dontusetodstartstop
+
+## StimSet parameters:
+currsetstimparamsfile
+usepreviousset
+sscriterioncorrect
+sscriterionlength
+
+# Motif Concatenation parameters:
+mcmaxnummots
+mcminnummots
+mcclassonemaxnummots
+mcclassonepctreinf
+mcclassonepctto
+mcclasstwomaxnummots
+mcclasstwopctreinf
+mcclasstwopctto
+mcclassthreemaxnummots
+mcclassthreepctreinf
+mcclassthreepctto
+mcallowlr
+mcallowambig
+
+
