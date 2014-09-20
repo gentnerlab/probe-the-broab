@@ -124,7 +124,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
     
 	' display and handle vars***
 	var swXLow:=1.0, swYLow:=0.0,swXHigh:=100.0,swYHigh:=100.0;
-	var ymin[MAXWAVCHANS%+1], ymax[MAXWAVCHANS%+1];
+	var ymin[MAXWAVCHANS%+4], ymax[MAXWAVCHANS%+4];
 	ArrConst(ymin, -1.0);ArrConst(ymax, 1.0);
 	var optimizey% :=0;
 	var lastEpochView$ := "";
@@ -174,14 +174,14 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var infoFileTrodeType%;
 	var trodeType%;
 	var eTrodeList$[8];
-	eTrodeList$[0]:="16 - 2x2 tetrode (F16) - NeuroNexus";
-	eTrodeList$[1]:="16 - 1x16 singles (F16) - NeuroNexus";
-	eTrodeList$[2]:="32 - 2x16 singles - NeuroNexus";
-	eTrodeList$[3]:="1  - single Platinum Iridium - GentnerCo.";
-	eTrodeList$[4]:="1 to 1 (16) - Chan # matches port #";
-	eTrodeList$[5]:="1 to 1 (32) - Chan # matches port #";
-	eTrodeList$[6]:="24 - 1x16 singles + LFP - NeuroNexus";
-	eTrodeList$[7]:="16 - 1x16 singles (H16) - NeuroNexus";
+	eTrodeList$[0]:="16ch - 2x2 tetrode (F16) - NeuroNexus";
+	eTrodeList$[1]:="16ch - 1x16 singles (F16) - NeuroNexus";
+	eTrodeList$[2]:="32ch - Poly3 - NeuroNexus";
+	eTrodeList$[3]:="1ch  - single Platinum Iridium - GentnerCo.";
+	eTrodeList$[4]:="16ch - Chan# is port# - Generic";
+	eTrodeList$[5]:="32ch - Chan# is port# - Generic";
+	eTrodeList$[6]:="24ch - 1x16 singles + LFP - NeuroNexus";
+	eTrodeList$[7]:="16ch - 1x16 singles (H16) - NeuroNexus";
 	var eTrodeComments$:="";
 	var eTrodeImpedance$:="";
 	var eTrodeID$:="";
@@ -638,17 +638,22 @@ if ret%=0 then
 				ChanTitle$(23,"Aud. Stim.");
 				DrawMode(23, 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 2 or trodeType% = 5) then
-				for iIR%:=1 to nWavChans% do 
+				for iIR%:=1 to currChanMap%[0]+3 do 
+                    if iIR%=30 then continue endif;
+                    if iIR%=31 then continue endif;
+                    if iIR%=32 then continue endif;
 					View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
 					'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-					chttl$ := Print$("Port %d", currChanMap%[iIR%-1]);
+					chttl$ := Print$("Port %d", currChanMap%[iIR%]);
 					ChanTitle$(iIR%,chttl$);
                 next;
+				ChanTitle$(35,"Aud. Stim.");
+				DrawMode(35, 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 3) then
 				for iIR%:=1 to nWavChans% do 
 					View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
 					'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-					chttl$ := Print$("Port %d", currChanMap%[iIR%-1]);
+					chttl$ := Print$("Port %d", currChanMap%[iIR%]);
 					ChanTitle$(iIR%,chttl$);
                 next;
 				ChanTitle$(2,"Aud. Stim.");
@@ -689,10 +694,10 @@ if ret%=0 then
 			usecpertime := SampleUsPerTime();
 			PL(Print$("SampleUsPerTime() shows %4.2f uspertime, which gives a max file time of %4.2f minutes",usecpertime,NUMMAXIMUMTICKS% * usecpertime * 1.0e-6 / 60.0));
 			'
-			if not qhBehavOnly% then
-				if VERBOSELOG% then PL(Print$("Attempting to set conditioner gains to %sx",GainList$[whichGainCtrl%])); endif
-				AdjustGains%(whichGainCtrl%); 'default is 10x
-			endif
+'			if not qhBehavOnly% then
+'				if VERBOSELOG% then PL(Print$("Attempting to set conditioner gains to %sx",GainList$[whichGainCtrl%])); endif
+'				AdjustGains%(whichGainCtrl%); 'default is 10x
+'			endif
 			'
 			View(datahandle%).CursorNew(0,1); 'Stim start
 			View(datahandle%).CursorNew(0,2); 'Stim end
@@ -1132,18 +1137,18 @@ for currPort%:=0 to currChanMap%[0]-1 do 'WARNING: careful this only works if th
 	endif;
 next
 
-'if trodeType% = 0 or trodeType% = 1 or trodeType% = 4 then 'if recording 16 channels, this sets port 16 (stim input) to 1x gain
-'	retCSL%:=CondSourceList(16,src$[]);	
-'	retCS%:=CondSet(16,0,1,0);
-'	retCG%:=CondGet(port%, in%, gain, offs, low, hi, notch%, ac%);
-'	if retCSL%<0 or retCS%<0 or retCG%<0 then
-'		PL(Print$("attempted to change conditioner gain settings for port %d, there was an error",currPort%));
-'		WarnDlg("Error Setting Conditioner Gain Settings",Print$("Error Setting Conditioner Gain Settings for port %d",currPort%));
-'		agSuccess% := 0;
-'	else
-'		if VERBOSELOG%=1 then PL(Print$("Conditioner Gain on port %d Set to %d",currPort%,desiredGain%)); endif
-'	endif;
-'endif
+if trodeType% = 0 or trodeType% = 1 or trodeType% = 4 then 'if recording 16 channels, this sets port 16 (stim input) to 1x gain
+	retCSL%:=CondSourceList(16,src$[]);	
+	retCS%:=CondSet(16,0,1,0);
+	retCG%:=CondGet(port%, in%, gain, offs, low, hi, notch%, ac%);
+	if retCSL%<0 or retCS%<0 or retCG%<0 then
+		PL(Print$("attempted to change conditioner gain settings for port %d, there was an error",currPort%));
+		WarnDlg("Error Setting Conditioner Gain Settings",Print$("Error Setting Conditioner Gain Settings for port %d",currPort%));
+		agSuccess% := 0;
+	else
+		if VERBOSELOG%=1 then PL(Print$("Conditioner Gain on port %d Set to %d",currPort%,desiredGain%)); endif
+	endif;
+endif
 
 if trodeType% = 6 then 'this sets LFP channels to 2x gain
 	PL("setting LFP channels (ports 16-23) to 2x gain");
@@ -1589,6 +1594,10 @@ else
 				protocolstimselectionstyle% := -1;
 			endcase
 			'
+        case InStr(protInstruct$,"micport") <> 0 then
+			MoveBy(0,0,-1);
+			readret% := read(protInstruct$,micport%);
+			'
 		case InStr(protInstruct$,"peckstopon") <> 0 then
 			MoveBy(0,0,-1);
 			readret% := read(protInstruct$,peckStopOn%);
@@ -2023,48 +2032,45 @@ case trodeType% = 1 then '1x16 neuronexus  (F16)
 	currChanMap%[16]:=6;
 	currChanMap%[17]:=32; 'stiminput
 	
-case trodeType% = 2 then '1x32 neuronexus
+case trodeType% = 2 then 'neuronexus poly3
 	nWavChans%:=32;
-	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%	
 	
-	
-	'values below are likely incorrect - do not take into account the probe connector	
-	
-	'	currChanMap%[1]:=1;
-	'	currChanMap%[2]:=2;
-	'	currChanMap%[3]:=3;
-	'	currChanMap%[4]:=4;
-	'	currChanMap%[5]:=5;
-	'	currChanMap%[6]:=6;
-	'	currChanMap%[7]:=7;
-	'	currChanMap%[8]:=8;
-	'	currChanMap%[9]:=9;
-	'	currChanMap%[10]:=10;
-	'	currChanMap%[11]:=11;
-	'	currChanMap%[12]:=12;
-	'	currChanMap%[13]:=13;
-	'	currChanMap%[14]:=14;
-	'	currChanMap%[15]:=15;
-	'	currChanMap%[16]:=16;
-	'	currChanMap%[17]:=17;
-	'	currChanMap%[18]:=18;
-	'	currChanMap%[19]:=19;
-	'	currChanMap%[20]:=20;
-	'	currChanMap%[21]:=21;
-	'	currChanMap%[22]:=22;
-	'	currChanMap%[23]:=23;
-	'	currChanMap%[24]:=24;
-	'	currChanMap%[25]:=25;
-	'	currChanMap%[26]:=26;
-	'	currChanMap%[27]:=27;
-	'	currChanMap%[28]:=28;
-	'	currChanMap%[29]:=29;
-	'	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
-	'	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
-	'	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
-	'	currChanMap%[33]:=30;
-	'	currChanMap%[34]:=31;
-	'	currChanMap%[35]:=32;
+	currChanMap%[1]:=19;
+	currChanMap%[2]:=18;
+	currChanMap%[3]:=30;
+	currChanMap%[4]:=29;
+	currChanMap%[5]:=31;
+	currChanMap%[6]:=20;
+	currChanMap%[7]:=22;
+	currChanMap%[8]:=17;
+	currChanMap%[9]:=27;
+	currChanMap%[10]:=26;
+	currChanMap%[11]:=32;
+	currChanMap%[12]:=23;
+	currChanMap%[13]:=24;
+	currChanMap%[14]:=21;
+	currChanMap%[15]:=25;
+	currChanMap%[16]:=15;
+	currChanMap%[17]:=28;
+	currChanMap%[18]:=2;
+	currChanMap%[19]:=3;
+	currChanMap%[20]:=1;
+	currChanMap%[21]:=14;
+	currChanMap%[22]:=13;
+	currChanMap%[23]:=16;
+	currChanMap%[24]:=4;
+	currChanMap%[25]:=8;
+	currChanMap%[26]:=5;
+	currChanMap%[27]:=9;
+	currChanMap%[28]:=10;
+	currChanMap%[29]:=12;
+	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[33]:=7;
+	currChanMap%[34]:=6;
+	currChanMap%[35]:=11; 'stiminput
 	
 	sampleRate% := 17000;	'needs to be lower for so many more channels
 	
