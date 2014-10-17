@@ -1,7 +1,8 @@
 '20100427   DPK     Creating new Chronic Script that is Modular and easier to use
 '20140404   DPK     Modifying chronic code to run acute experiments on Burung
 '                    There are a number of bits I've hacked together to make this work . look for BURUNGHACK to find them and fix them
-
+'TODO fix interrupt error
+'TODO fix setlist error
 'FLAG REGISTRY: qhWaitingToJump%,qhWaitingToStartTrial%,qhInTrial%,qhWaitingForStimFinish%,qhWaitingForTrialFinish%,qhFinishTrial%,qhBehavOnly%,qhRecordingAndBehavior%,qhRecordingOnly%
 '
 #include "F:\code\github\spike2_scripts\chronic\include\chron_include.s2s"
@@ -59,6 +60,11 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	const chronNBseqGNGPS$  := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_gng-peckstop.pls";
 	var chronNBseq$ := chronNOseq$; '2ac is default (see DoSubjectInfo%() for switch)
 	var seqfile$;
+    'BE CAREFEUL: the sample optimise us per time unit options interact with the sequencer files
+    var BOsampoptuslow% := 1; 'behavior only
+    var BOsampoptushigh% := 10; 'behavior only
+    var NONBsampoptuslow% := 1; 'neural included
+    var NONBsampoptushigh% := 20; 'neural included
 	' 
 	var subjectpath$ := "";
 	subjectpath$ := PickSubjectPath$(defaultFPS%);
@@ -115,7 +121,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	'var sampleRate%         	:= 18975; 'this is overkill, hardware filter set at 300Hz-8000Hz '18975 works well for 17wf chans, lets record for ~1:50
 	'var sampleRate%         	:= 25000;
     '	var sampleRate%         	:= 31250;
-    var sampleRate%         	:= 28000;   
+    var sampleRate%         	:= 20000;    
 	var BehavOnlysampleRate%    := 40000; 'To record BOS/whatever else is going on in box (40K might be too high, but can easily delete Behav only waveform chans if no bos on em
 	var usecpertime;
 	var timeperADC;
@@ -212,7 +218,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currElectrode$ := "";
 	var infoFileTrodeType%;
 	var trodeType%;
-	var eTrodeList$[9];
+	var eTrodeList$[10];
 	eTrodeList$[0]:="16 - 2x2 tetrode (F16) - NeuroNexus";
 	eTrodeList$[1]:="16 - 1x16 singles (F16) - NeuroNexus";
 	eTrodeList$[2]:="32 - 2x16 singles - NeuroNexus";
@@ -221,7 +227,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	eTrodeList$[5]:="1 to 1 (32) - Chan # matches port #";
 	eTrodeList$[6]:="24 - 1x16 singles + LFP - NeuroNexus";
 	eTrodeList$[7]:="16 - 1x16 singles (H16) - NeuroNexus";
-	eTrodeList$[8]:="32 - 1x32 singles (A32) - NeuroNexus";
+	eTrodeList$[8]:="32 - 1x32 singles (A32) - NeuroNexus"; 
+	eTrodeList$[9]:="32 - 4x8 N-Form - Modular Bionics";
 	var eTrodeComments$:="";
 	var eTrodeImpedance$:="";
 	var eTrodeID$:="";
@@ -286,7 +293,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var TIMEOUT     := 10.0;	'timeout duration in seconds
 	var ITI         := 2.0; 		'intertrial interval in seconds
 	var ITINO;
-	var MINITINO    := 1.0;  'minimum intertrial interval in seconds for neural recording only
+	var MINITINO    := 3.0;  'minimum intertrial interval in seconds for neural recording only
 	var MAXITINO    := 5.0; 	'maximum intertrial interval in seconds for neural recording only
 	var relS        := -4.0; 	'pretrigger save seconds
 	var correctionTrialsOn% := 0; 'default is no correction trials (set in SEsetupStimSelectStyle%()
@@ -2311,47 +2318,89 @@ case trodeType% = 7 then '1x16 neuronexus  (H16 connector)
 	currChanMap%[17]:=32; 'stiminput
     
 case trodeType% = 8 then '1x32 neuronexus  (A32 connector) BURUNG
-	nWavChans%:=36; 'extra for stim recording
+	nWavChans%:=32+3+1; 'extra for stim recording
 	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
 	
-	currChanMap%[1]:=20;
-	currChanMap%[2]:=32;
-	currChanMap%[3]:=23;
-	currChanMap%[4]:=34;
-	currChanMap%[5]:=21;
-	currChanMap%[6]:=33;
-	currChanMap%[7]:=22;
-	currChanMap%[8]:=37;
-	currChanMap%[9]:=19;
-	currChanMap%[10]:=35;
-	currChanMap%[11]:=25;
-	currChanMap%[12]:=39;
-	currChanMap%[13]:=18;
-	currChanMap%[14]:=36;
-	currChanMap%[15]:=27;
-	currChanMap%[16]:=41;
-	currChanMap%[17]:=17;
-	currChanMap%[18]:=38;
-	currChanMap%[19]:=29;
-	currChanMap%[20]:=45;
-	currChanMap%[21]:=16;
-	currChanMap%[22]:=43;
-	currChanMap%[23]:=31;
-	currChanMap%[24]:=47;
-	currChanMap%[25]:=24;
-	currChanMap%[26]:=40;
-	currChanMap%[27]:=26;
-	currChanMap%[28]:=42;
-	currChanMap%[29]:=28;
+	currChanMap%[1]:=21;
+	currChanMap%[2]:=33;
+	currChanMap%[3]:=24;
+	currChanMap%[4]:=35;
+	currChanMap%[5]:=22;
+	currChanMap%[6]:=34;
+	currChanMap%[7]:=23;
+	currChanMap%[8]:=38;
+	currChanMap%[9]:=20;
+	currChanMap%[10]:=36;
+	currChanMap%[11]:=26;
+	currChanMap%[12]:=40;
+	currChanMap%[13]:=19;
+	currChanMap%[14]:=37;
+	currChanMap%[15]:=28;
+	currChanMap%[16]:=42;
+	currChanMap%[17]:=18;
+	currChanMap%[18]:=39;
+	currChanMap%[19]:=30;
+	currChanMap%[20]:=46;
+	currChanMap%[21]:=17;
+	currChanMap%[22]:=44;
+	currChanMap%[23]:=32;
+	currChanMap%[24]:=48;
+	currChanMap%[25]:=25;
+	currChanMap%[26]:=41;
+	currChanMap%[27]:=27;
+	currChanMap%[28]:=43;
+	currChanMap%[29]:=29;
 	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
 	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
 	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
-	currChanMap%[33]:=44;
-	currChanMap%[34]:=30;
-	currChanMap%[35]:=46;
+	currChanMap%[33]:=45;
+	currChanMap%[34]:=31;
+	currChanMap%[35]:=47;
 	currChanMap%[36]:=8; 'stiminput
     
-    'sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK
+    'sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
+
+case trodeType% = 9 then '4x8 N-Form, Modular Bionics (A32 connector) BURUNG	
+    nWavChans%:=36; 'extra for stim recording
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	
+	currChanMap%[1]:=17;
+	currChanMap%[2]:=18;
+	currChanMap%[3]:=19;
+	currChanMap%[4]:=20;
+	currChanMap%[5]:=21;
+	currChanMap%[6]:=22;
+	currChanMap%[7]:=23;
+	currChanMap%[8]:=24;
+	currChanMap%[9]:=25;
+	currChanMap%[10]:=26;
+	currChanMap%[11]:=27;
+	currChanMap%[12]:=28;
+	currChanMap%[13]:=29;
+	currChanMap%[14]:=30;
+	currChanMap%[15]:=31;
+	currChanMap%[16]:=32;
+	currChanMap%[17]:=33;
+	currChanMap%[18]:=34;
+	currChanMap%[19]:=35;
+	currChanMap%[20]:=36;
+	currChanMap%[21]:=37;
+	currChanMap%[22]:=38;
+	currChanMap%[23]:=39;
+	currChanMap%[24]:=40;
+	currChanMap%[25]:=41;
+	currChanMap%[26]:=42;
+	currChanMap%[27]:=43;
+	currChanMap%[28]:=44;
+	currChanMap%[29]:=45;
+	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[33]:=46;
+	currChanMap%[34]:=47;
+	currChanMap%[35]:=48;
+	currChanMap%[36]:=8; 'stiminput   
+    
 else
 	PL("What trode type are you using?");
 endcase
@@ -2465,7 +2514,7 @@ if (retSS%=0) then
 				
 				retSW%[0]:= SampleWaveform(BOmicchannel%,BOmicport%,BehavOnlysampleRate%); 'add waveform channel for microphone input
 				if retSW%[0] <> 0 then; PrintLog("ERROR:\t%s\n",Error$(retSW%[0]));endif;
-				SampleOptimise(2,1,type1401%,1,10); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
+				SampleOptimise(2,1,type1401%,BOsampoptuslow%,BOsampoptushigh%); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
 				PrintLog("Chan %d: Expected waveform rate: %f | Actual waveform rate: %f\n",17,SampleChanInfo(16,2),SampleChanInfo(16,4));
 				if SampleChanInfo(16,2) < 0 then PrintLog("SampleChanInfo returned ERROR: %s\n",Error$(SampleChanInfo(16,2)));endif
 				PrintLog("All channels successfully added to configuration.\n");
@@ -2480,7 +2529,7 @@ if (retSS%=0) then
                 next;
 				if ArrSum(retSW%)=0 then 
 					'SampleOptimise(2,1,type1401%,1,100); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
-					SampleOptimise(2,1,type1401%,1,100,-1,1); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
+					SampleOptimise(2,1,type1401%,NONBsampoptuslow%,NONBsampoptushigh%,-1,1); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
 					if VERBOSELOG%=1 then PrintLog("All channels successfully added to configuration.\n"); endif
 					successDC%:=1;
 					for iDC%:=1 to savedWFChans%[0] do 
@@ -2685,8 +2734,13 @@ for iSS% := 0 to numStimFiles%-1 do
 	'
 	stimPctTo%[iSS%]:=100;
 	'
-	stimPctPres[iSS%]:=Round(100/numStimFiles%);
-	'TODO: arrsum check here that it adds up to 100 percent
+	'stimPctPres[iSS%]:=Round(100/numStimFiles%);
+    
+    var nsfbig:= numStimFiles%*10000; 'BURUNGHACK TODO: FIX ME!!!!!
+    'stimPctPres[iSS%]:=100/numStimFiles%; 'BURUNGHACK
+    stimPctPres[iSS%]:=100.0/nsfbig; 'BURUNGHACK
+	stimPctPres[iSS%]:=stimPctPres[iSS%]*10000; 'BURUNGHACK
+    'TODO: arrsum check here that it adds up to 100 percent
 	'
 	stimCodes%[iSS%]:=iSS%;
 next;
@@ -4037,6 +4091,11 @@ stimtimeSec:=stimsz/REALaudioOutRate;
 seqTicks:=stimtimeSec/seqPerMs*1000; 'should give number of seq ticks in curr stim
 seqTicks% := seqTicks; 'Convert to integer (is this necessary?)
 SampleSeqVar(9,seqTicks%);'send sequencer current stim length in sequencer ticks
+var retseqTicks% := SampleSeqVar(9);
+var returnedstimtime := retseqTicks% * seqPerMs / 1000;
+
+PrintLog("shouldbeStimtime = %2.6f\n",stimtimeSec);
+PrintLog("returnedStimtime = %2.6f\n",returnedstimtime);
 '
 
 View(currStimFileHandle%);
