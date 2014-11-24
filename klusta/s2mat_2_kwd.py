@@ -32,30 +32,31 @@ def read_s2mat(mat,sites):
 
     return data
 
-def write_kwd(kwd,data,recording=0):
-    f = h5.File(kwd, 'w')
-    grp = f.create_group('recordings/%i' % recording)
+def write_kwd(h5f,data,recording=0):
+    grp = h5f.create_group('recordings/%i' % recording)
     grp.create_dataset('data', data=data)
-    f.close()
     return True
 
 
-parser = argparse.ArgumentParser(description='Convert a Spike2-exported MAT file to KWD.')
-parser.add_argument('mat', type=str, nargs='+',
-                   help='MAT files to be converted')
+parser = argparse.ArgumentParser(description='Convert Spike2-exported MAT files to KWD.')
+parser.add_argument('files', type=str,
+                   help='text file with MAT files to be converted')
 parser.add_argument('-t','--trode', type=str, action='store',default='A1x16',
                    help='electrode configuration')
-parser.add_argument('-n','--name', type=str, action='store',default='concat',
-                   help='name of kwd file')
 
 
-def main(mat,trode,kwd):
+def main(files,trode):
 
-    for r, m in enumerate(mat):
-        data = read_s2mat(mat,sites[trode])
-        name = 
-        if write_kwd(kwd+'.kwd',data,recording=r):
-            print '%s saved to %s as recording %s' % (mat,kwd+'.kwd',r)
+    with open(files,'r') as f:
+        mat = f.readlines()
+
+    kwd = '.'.join(files.split('.')[:-1])   
+
+    with h5.File(kwd, 'w') as f:
+        for r, m in enumerate(mat):
+            data = read_s2mat(mat,sites[trode])
+            write_kwd(f,data,recording=r)
+            print '%s saved to %s as recording %s' % (mat,kwd,r)
 
 if __name__ == '__main__':
 
