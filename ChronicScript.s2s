@@ -3657,7 +3657,7 @@ FilePathSet(dataPathEpoch$);
 
 if assocWDataFile% = 1 then
 	PL(Print$("Attempting to save log as: %s\n\n",dataPathEpoch$+dataFileName$+"-log.txt"));
-	retSL%:=FileSaveAs(dataFileName$+"-log.txt",1);
+	retSL%:=FileSaveAs(dataFileName$+"-log.txt",1,1);
 	if retSL%=0 then
 		View(LogHandle()).EditSelectAll();
 		View(LogHandle()).EditClear();
@@ -3667,7 +3667,7 @@ if assocWDataFile% = 1 then
 	endif
 else
 	PL(Print$("Attempting to save log as: %s\n\n",Date$(2,2,1,1,"-")+"+"+Time$(1,7,0,"-")+"-log.txt"));
-	retSL%:=FileSaveAs(Date$(2,2,1,1,"-")+"+"+Time$(1,7,0,"-")+"-log.txt",1);
+	retSL%:=FileSaveAs(Date$(2,2,1,1,"-")+"+"+Time$(1,7,0,"-")+"-log.txt",1,1);
 endif;	
 if retSL%<>0 then
 	PrintLog("ERROR: Error saving log file: %s\n",Error$(retSL%));
