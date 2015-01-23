@@ -5,7 +5,7 @@
 'TODO fix setlist error
 'FLAG REGISTRY: qhWaitingToJump%,qhWaitingToStartTrial%,qhInTrial%,qhWaitingForStimFinish%,qhWaitingForTrialFinish%,qhFinishTrial%,qhBehavOnly%,qhRecordingAndBehavior%,qhRecordingOnly%
 '
-#include "F:\code\github\spike2_scripts\chronic\include\chron_include.s2s"
+#include "include\chron_include.s2s"
 
 StartupScript();
 '
@@ -53,11 +53,11 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	const defaultFPS% := 2; '1=use testchron, 2=use crappy windows dialogue, 3=let user type in name of folder in c:/experiments/
 	const expPathRoot$      := "F:\\Experiments\\raw\\";
 	const stimLibPath$      := "F:\\Experiments\\stimlib\\";
-	const chronNOseq$       := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_NeurOnly.pls";
-	const chronNBseq2AC$    := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_2ac_wcue.pls";
-	const chronNBseq2ACPS$  := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_2ac-peckstop.pls";
-	const chronNBseqGNG$    := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_gng.pls";
-	const chronNBseqGNGPS$  := "F:\\code\\github\\spike2_scripts\\chronic\\sequencer\\chron_seq_gng-peckstop.pls";
+	const chronNOseq$       := "F:\\code\\probe-the-broab\\sequencer\\chron_seq_NeurOnly.pls";
+	const chronNBseq2AC$    := "F:\\code\\probe-the-broab\\sequencer\\chron_seq_2ac_wcue.pls";
+	const chronNBseq2ACPS$  := "F:\\code\\probe-the-broab\\sequencer\\chron_seq_2ac-peckstop.pls";
+	const chronNBseqGNG$    := "F:\\code\\probe-the-broab\\sequencer\\chron_seq_gng.pls";
+	const chronNBseqGNGPS$  := "F:\\code\\probe-the-broab\\sequencer\\chron_seq_gng-peckstop.pls";
 	var chronNBseq$ := chronNOseq$; '2ac is default (see DoSubjectInfo%() for switch)
 	var seqfile$;
     'BE CAREFEUL: the sample optimise us per time unit options interact with the sequencer files
@@ -184,10 +184,10 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	'Setup TOD (time of day) loop variables
 	var dontuseTODStartStop% := 0;
 	var secondsSinceMinute%,minutessincemidnight%;
-	var beginHours%:= 8;
-	var beginMins%:=10;
-	var endHours%:= 18;
-	var endMins%:=55;
+	var beginHours%:= 0;
+	var beginMins%:=1;
+	var endHours%:= 23;
+	var endMins%:=59;
 	var beginningOfDayInminutessincemidnight% := beginHours%*60 + beginMins%;
 	var endOfDayInminutessincemidnight%;
 	if dontuseTODStartStop% = 1 then
@@ -218,7 +218,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currElectrode$ := "";
 	var infoFileTrodeType%;
 	var trodeType%;
-	var eTrodeList$[10];
+	var eTrodeList$[11];
 	eTrodeList$[0]:="16 - 2x2 tetrode (F16) - NeuroNexus";
 	eTrodeList$[1]:="16 - 1x16 singles (F16) - NeuroNexus";
 	eTrodeList$[2]:="32 - 2x16 singles - NeuroNexus";
@@ -229,6 +229,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	eTrodeList$[7]:="16 - 1x16 singles (H16) - NeuroNexus";
 	eTrodeList$[8]:="32 - 1x32 singles (A32) - NeuroNexus"; 
 	eTrodeList$[9]:="32 - 4x8 N-Form - Modular Bionics";
+	eTrodeList$[10]:="16 - 1x16 singles (A16) - NeuroNexus";
 	var eTrodeComments$:="";
 	var eTrodeImpedance$:="";
 	var eTrodeID$:="";
@@ -711,7 +712,7 @@ if ret%=0 then
                 next;
 				ChanTitle$(currChanMap%[0],"Aud. Stim.");
 				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
-			case(trodeType% = 1 or trodeType% = 4 or trodeType% = 6 or trodeType% = 7 or trodeType% = 8) then
+			case(trodeType% = 1 or trodeType% = 4 or trodeType% = 6 or trodeType% = 7 or trodeType% = 8 or trodeType% = 10) then
 				for iIR%:=1 to currChanMap%[0] do 
                     if currChanMap%[iIR%] <> -1 then
                         View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
@@ -2400,6 +2401,28 @@ case trodeType% = 9 then '4x8 N-Form, Modular Bionics (A32 connector) BURUNG
 	currChanMap%[34]:=47;
 	currChanMap%[35]:=48;
 	currChanMap%[36]:=8; 'stiminput   
+    
+case trodeType% = 10 then '1x16 neuronexus  (H16 connector)
+	nWavChans%:=17; 'extra for stim recording
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	
+	currChanMap%[1]:=6;
+	currChanMap%[2]:=11;
+	currChanMap%[3]:=3;
+	currChanMap%[4]:=14;
+	currChanMap%[5]:=1;
+	currChanMap%[6]:=16;
+	currChanMap%[7]:=2;
+	currChanMap%[8]:=15;
+	currChanMap%[9]:=5;
+	currChanMap%[10]:=12;
+	currChanMap%[11]:=4;
+	currChanMap%[12]:=13;
+	currChanMap%[13]:=7;
+	currChanMap%[14]:=10;
+	currChanMap%[15]:=8;
+	currChanMap%[16]:=9;
+	currChanMap%[17]:=32; 'stiminput
     
 else
 	PL("What trode type are you using?");
