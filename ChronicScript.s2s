@@ -12,7 +12,7 @@ StartupScript();
 ' SETUP GLOBAL VARIABLES
 if 1 then 'This lets us fold away the variable set up for ease of viewing while editing!
 	
-	const VERBOSELOG% := 0;  '1 = normal debugging; 2= time/filesize debugging; ; 3= handler flag debugging
+	const VERBOSELOG% := 1;  '1 = normal debugging; 2= time/filesize debugging; ; 3= handler flag debugging
 	var ltime%:=-1;
     
 	' set IDs for toolbar buttons
@@ -2686,7 +2686,7 @@ for iCSF% := 0 to n%-1 do
 		if VERBOSELOG%=1 then  PrintLog("In ConvertStimFiles:\tSpike2 file '%s' already exists, '%s' not converted\n", testCSF$, stimFileNames$[iCSF%]); endif
     else
 		if VERBOSELOG%=1 then   PrintLog("In ConvertStimFiles:\tConverting '%s' to ... ",stimFileNames$[iCSF%]); endif
-        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,2,errCSF%,"dll=mswave");
+        retCSF$ := FileConvert$(stimFileNames$[iCSF%],truncName$,3,errCSF%,"dll=mswave");
         if errCSF%=0 then
             PrintLog("'%s'\n",retCSF$);
         else
