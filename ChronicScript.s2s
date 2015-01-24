@@ -43,10 +43,61 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	const SOFTREFID%			:= 39;
 	const SESVIEWID%			:= 40;
     
+    const MAXWAVCHANS%          := 48;
+    
+    
+
+    var expPathRoot$      := "";    
+    var stimLibPath$      := "";
+    var type1401% := 0;
+    
+    
+    
+    var host$ := LCase$(System$("COMPUTERNAME"));
+    docase
+        case InStr("ibon", host$) then
+            type1401% := 5;
+            expPathRoot$      := "D:\\Experiments\\raw\\";
+            stimLibPath$      := "D:\\Experiments\\stimlib\\";
+        
+        case InStr("paukstis", host$) then
+            type1401% := 7;
+            expPathRoot$      := "E:\\experiments\\raw\\";
+            stimLibPath$      := "E:\\experiments\\stimlib\\";
+       
+'        case InStr("manu", host$) then
+'            var type1401% := 4;
+'            const MAXWAVCHANS% := 16;
+'            var expPathRoot$      := "F:\\Experiments\\raw\\";
+'            var stimLibPath$      := "F:\\Experiments\\stimlib\\";
+        
+        case InStr("burung", host$) then
+            type1401% := 7;
+            expPathRoot$      := "F:\\Experiments\\raw\\";
+            stimLibPath$      := "F:\\Experiments\\stimlib\\";
+        
+'        else
+'        
+'            retFPS%:=FilePathSet(expPathRoot$,0,"Select data folder.");
+'            if retFPS% < 0 then  
+'                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
+'                halt; 
+'            else 
+'                expPathRoot$ := FilePath$();
+'            endif;
+'        
+'            retFPS%:=FilePathSet(expPathRoot$,0,"Select stimulus library.");
+'            if retFPS% < 0 then  
+'                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
+'                halt; 
+'            else 
+'                stimLibPath$ := FilePath$();
+'            endif;
+        
+    endcase;
+    
 	' define paths
 	const defaultFPS% := 2; '1=use testchron, 2=use crappy windows dialogue, 3=let user type in name of folder in c:/experiments/
-	var expPathRoot$      := "D:\\experiments\\raw\\";
-	var stimLibPath$      := "D:\\experiments\\stimlib\\";
     var seqPath$          := GetScriptPath$() + "sequencer\\";
 	var seqfile$;
 	var subjectpath$ := "";
@@ -79,13 +130,16 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	ArrConst(firsttimestampcodes%[],243); 'this will be the unique code for the first timestamp on the textmark channel
 	ArrConst(timestampcodes%[],244); 'this will be the unique code for timestamps on the textmark channel
 	var once%:=1; 'I think this is for the first trial only (TODO: check this and rename with more descriptive name)
+    
 
 	' ADC variables
-	const MAXWAVCHANS%			:= 32;
 	var nWavChans%;
 	var savedWFChans%[MAXWAVCHANS%+1];
 	var currChanMap%[MAXWAVCHANS%+4]; '+1 for size at index 0 and +3 for crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
 	var swc%;
+    
+     'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK    
+    
 	var GainList$[4];
 	GainList$[0] := "1";
 	GainList$[1] := "2";
@@ -143,10 +197,10 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	' time-of-day (TOD) loop variables
 	var dontuseTODStartStop% := 0;
 	var secondsSinceMinute%,minutessincemidnight%;
-	var beginHours%:= 8;
-	var beginMins%:=10;
-	var endHours%:= 18;
-	var endMins%:=55;
+	var beginHours%:= 0;
+	var beginMins%:=1;
+	var endHours%:= 23;
+	var endMins%:=59;
 	var beginningOfDayInminutessincemidnight% := beginHours%*60 + beginMins%;
 	var endOfDayInminutessincemidnight%;
 	if dontuseTODStartStop% = 1 then
@@ -173,15 +227,18 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currElectrode$ := "";
 	var infoFileTrodeType%;
 	var trodeType%;
-	var eTrodeList$[8];
-	eTrodeList$[0]:="16ch - 2x2 tetrode (F16) - NeuroNexus";
-	eTrodeList$[1]:="16ch - 1x16 singles (F16) - NeuroNexus";
+	var eTrodeList$[11];
+	eTrodeList$[0]:="16 - 2x2 tetrode (F16) - NeuroNexus";
+	eTrodeList$[1]:="16 - 1x16 singles (F16) - NeuroNexus";
 	eTrodeList$[2]:="32ch - Poly3 - NeuroNexus";
-	eTrodeList$[3]:="1ch  - single Platinum Iridium - GentnerCo.";
-	eTrodeList$[4]:="16ch - Chan# is port# - Generic";
-	eTrodeList$[5]:="32ch - Chan# is port# - Generic";
-	eTrodeList$[6]:="24ch - 1x16 singles + LFP - NeuroNexus";
-	eTrodeList$[7]:="16ch - 1x16 singles (H16) - NeuroNexus";
+	eTrodeList$[3]:="1  - single Platinum Iridium - GentnerCo.";
+	eTrodeList$[4]:="1 to 1 (16) - Chan # matches port #";
+	eTrodeList$[5]:="1 to 1 (32) - Chan # matches port #";
+	eTrodeList$[6]:="24 - 1x16 singles + LFP - NeuroNexus";
+	eTrodeList$[7]:="16 - 1x16 singles (H16) - NeuroNexus";
+	eTrodeList$[8]:="32 - 1x32 singles (A32) - NeuroNexus"; 
+	eTrodeList$[9]:="32 - 4x8 N-Form - Modular Bionics";
+	eTrodeList$[10]:="16 - 1x16 singles (A16) - NeuroNexus";
 	var eTrodeComments$:="";
 	var eTrodeImpedance$:="";
 	var eTrodeID$:="";
@@ -241,9 +298,9 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var TIMEOUT     := 10.0;  'timeout duration in seconds
 	var ITI         := 2.0;   'intertrial interval in seconds
 	var ITINO;
-	var MINITINO    := 1.0;   'minimum intertrial interval in seconds for neural recording only
-	var MAXITINO    := 3.0;   'maximum intertrial interval in seconds for neural recording only
-	var relS        := -4; 	  'pretrigger save seconds
+	var MINITINO    := 3.0;  'minimum intertrial interval in seconds for neural recording only
+	var MAXITINO    := 5.0; 	'maximum intertrial interval in seconds for neural recording only
+	var relS        := -4.0; 	'pretrigger save seconds
 	var correctionTrialsOn% := 0; 'default is no correction trials (set in SEsetupStimSelectStyle%()
 	var doCorrectionTrial%  := 0;
 	var doFeedCorrectionTrials% := 0;
@@ -281,7 +338,6 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	ssCriterionCorrect%[1] := 15;
 	ssCriterionCorrect%[2] := 15;
 	ssCriterionCorrect%[3] := 0;
-	ssCriterionCorrect%[4] := 0;
 	ssCriterionCorrect%[4] := 0;
 	ssCriterionCorrect%[5] := 15;
 	ssCriterionCorrect%[6] := 15;
@@ -626,38 +682,41 @@ if ret%=0 then
 						endif
 					endif
                 next;
-				ChanTitle$(25,"Aud. Stim.");
-				DrawMode(25, 9, 256, 1, 96, 96, 1, 0);
-			case(trodeType% = 1 or trodeType% = 4 or trodeType% = 6 or trodeType% = 7) then
+				ChanTitle$(currChanMap%[0],"Aud. Stim.");
+				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
+			case(trodeType% = 1 or trodeType% = 4 or trodeType% = 6 or trodeType% = 7 or trodeType% = 8 or trodeType% = 10) then
 				for iIR%:=1 to currChanMap%[0] do 
-					View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
-					'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-					chttl$ := Print$("Port %d", currChanMap%[iIR%]);
-					ChanTitle$(iIR%,chttl$);
+                    if currChanMap%[iIR%] <> -1 then
+                        View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
+                        'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
+                        chttl$ := Print$("Port %d", currChanMap%[iIR%]);
+                        ChanTitle$(iIR%,chttl$);
+                    endif
                 next;
-				ChanTitle$(23,"Aud. Stim.");
-				DrawMode(23, 9, 256, 1, 96, 96, 1, 0);
+				ChanTitle$(currChanMap%[0],"Aud. Stim.");
+				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 2 or trodeType% = 5) then
-				for iIR%:=1 to currChanMap%[0]+3 do 
-                    if iIR%=30 then continue endif;
-                    if iIR%=31 then continue endif;
-                    if iIR%=32 then continue endif;
-					View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
-					'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-					chttl$ := Print$("Port %d", currChanMap%[iIR%]);
-					ChanTitle$(iIR%,chttl$);
+				for iIR%:=1 to nWavChans% do 
+                    if currChanMap%[iIR%] <> -1 then
+                        View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
+                        'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
+                        chttl$ := Print$("Port %d", currChanMap%[iIR%-1]);
+                        ChanTitle$(iIR%,chttl$);
+                    endif
                 next;
-				ChanTitle$(35,"Aud. Stim.");
-				DrawMode(35, 9, 256, 1, 96, 96, 1, 0);
+                ChanTitle$(currChanMap%[0],"Aud. Stim.");
+				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 3) then
 				for iIR%:=1 to nWavChans% do 
-					View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
-					'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-					chttl$ := Print$("Port %d", currChanMap%[iIR%]);
-					ChanTitle$(iIR%,chttl$);
+                    if currChanMap%[iIR%] <> -1 then
+                        View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
+                        'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
+                        chttl$ := Print$("Port %d", currChanMap%[iIR%-1]);
+                        ChanTitle$(iIR%,chttl$);
+                    endif
                 next;
-				ChanTitle$(2,"Aud. Stim.");
-				DrawMode(2, 9, 256, 1, 96, 96, 1, 0);
+                ChanTitle$(currChanMap%[0],"Aud. Stim.");
+				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			else
 				PrintLog("ERROR: Not sure which electrode type is being used. Channels are probably labeled incorrectly. trodeType% is: %d \n",trodeType%)
 			endcase
@@ -1137,18 +1196,18 @@ for currPort%:=0 to currChanMap%[0]-1 do 'WARNING: careful this only works if th
 	endif;
 next
 
-if trodeType% = 0 or trodeType% = 1 or trodeType% = 4 then 'if recording 16 channels, this sets port 16 (stim input) to 1x gain
-	retCSL%:=CondSourceList(16,src$[]);	
-	retCS%:=CondSet(16,0,1,0);
-	retCG%:=CondGet(port%, in%, gain, offs, low, hi, notch%, ac%);
-	if retCSL%<0 or retCS%<0 or retCG%<0 then
-		PL(Print$("attempted to change conditioner gain settings for port %d, there was an error",currPort%));
-		WarnDlg("Error Setting Conditioner Gain Settings",Print$("Error Setting Conditioner Gain Settings for port %d",currPort%));
-		agSuccess% := 0;
-	else
-		if VERBOSELOG%=1 then PL(Print$("Conditioner Gain on port %d Set to %d",currPort%,desiredGain%)); endif
-	endif;
-endif
+'if trodeType% = 0 or trodeType% = 1 or trodeType% = 4 then 'if recording 16 channels, this sets port 16 (stim input) to 1x gain
+'	retCSL%:=CondSourceList(16,src$[]);	
+'	retCS%:=CondSet(16,0,1,0);
+'	retCG%:=CondGet(port%, in%, gain, offs, low, hi, notch%, ac%);
+'	if retCSL%<0 or retCS%<0 or retCG%<0 then
+'		PL(Print$("attempted to change conditioner gain settings for port %d, there was an error",currPort%));
+'		WarnDlg("Error Setting Conditioner Gain Settings",Print$("Error Setting Conditioner Gain Settings for port %d",currPort%));
+'		agSuccess% := 0;
+'	else
+'		if VERBOSELOG%=1 then PL(Print$("Conditioner Gain on port %d Set to %d",currPort%,desiredGain%)); endif
+'	endif;
+'endif
 
 if trodeType% = 6 then 'this sets LFP channels to 2x gain
 	PL("setting LFP channels (ports 16-23) to 2x gain");
@@ -2072,7 +2131,7 @@ case trodeType% = 2 then 'neuronexus poly3
 	currChanMap%[34]:=6;
 	currChanMap%[35]:=11; 'stiminput
 	
-	sampleRate% := 17000;	'needs to be lower for so many more channels
+	'sampleRate% := 17000;	'needs to be lower for so many more channels
 	
 case trodeType% = 3 then 'single platinum iridium
 	nWavChans%:=2; 'extra for stim recording
@@ -2104,7 +2163,7 @@ case trodeType% = 4 then '1 to 1 (16)
 	currChanMap%[17]:=32; 'stiminput
 	
 case trodeType% = 5 then '1 to 1 (32)
-	nWavChans%:=32;
+	nWavChans%:=36;
 	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
 	
 	currChanMap%[1]:=1;
@@ -2142,8 +2201,9 @@ case trodeType% = 5 then '1 to 1 (32)
 	currChanMap%[33]:=30;
 	currChanMap%[34]:=31;
 	currChanMap%[35]:=32;
+    currChanMap%[36]:=33; 'stiminput
 	
-	sampleRate% := 17000;	'needs to be lower for so many more channels	
+	'sampleRate% := 20000;	'needs to be lower for so many more channels	
 	
     
 case trodeType% = 6 then '1x16 neuronexus + 8 LFP (using plexon's every-other-channel adapter)
@@ -2199,7 +2259,113 @@ case trodeType% = 6 then '1x16 neuronexus + 8 LFP (using plexon's every-other-ch
 	currChanMap%[15]:=3;
 	currChanMap%[16]:=6;
 	currChanMap%[17]:=32; 'stiminput
-	 
+    
+case trodeType% = 8 then '1x32 neuronexus  (A32 connector) BURUNG
+	nWavChans%:=32+3+1; 'extra for stim recording
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	
+	currChanMap%[1]:=21;
+	currChanMap%[2]:=33;
+	currChanMap%[3]:=24;
+	currChanMap%[4]:=35;
+	currChanMap%[5]:=22;
+	currChanMap%[6]:=34;
+	currChanMap%[7]:=23;
+	currChanMap%[8]:=38;
+	currChanMap%[9]:=20;
+	currChanMap%[10]:=36;
+	currChanMap%[11]:=26;
+	currChanMap%[12]:=40;
+	currChanMap%[13]:=19;
+	currChanMap%[14]:=37;
+	currChanMap%[15]:=28;
+	currChanMap%[16]:=42;
+	currChanMap%[17]:=18;
+	currChanMap%[18]:=39;
+	currChanMap%[19]:=30;
+	currChanMap%[20]:=46;
+	currChanMap%[21]:=17;
+	currChanMap%[22]:=44;
+	currChanMap%[23]:=32;
+	currChanMap%[24]:=48;
+	currChanMap%[25]:=25;
+	currChanMap%[26]:=41;
+	currChanMap%[27]:=27;
+	currChanMap%[28]:=43;
+	currChanMap%[29]:=29;
+	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[33]:=45;
+	currChanMap%[34]:=31;
+	currChanMap%[35]:=47;
+	currChanMap%[36]:=8; 'stiminput
+    
+    'sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
+
+case trodeType% = 9 then 'BURUNG: 4x8 N-Form, Modular Bionics (A32 connector)
+    nWavChans%:=36; 'extra for stim recording
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	
+	currChanMap%[1]:=17;
+	currChanMap%[2]:=18;
+	currChanMap%[3]:=19;
+	currChanMap%[4]:=20;
+	currChanMap%[5]:=21;
+	currChanMap%[6]:=22;
+	currChanMap%[7]:=23;
+	currChanMap%[8]:=24;
+	currChanMap%[9]:=25;
+	currChanMap%[10]:=26;
+	currChanMap%[11]:=27;
+	currChanMap%[12]:=28;
+	currChanMap%[13]:=29;
+	currChanMap%[14]:=30;
+	currChanMap%[15]:=31;
+	currChanMap%[16]:=32;
+	currChanMap%[17]:=33;
+	currChanMap%[18]:=34;
+	currChanMap%[19]:=35;
+	currChanMap%[20]:=36;
+	currChanMap%[21]:=37;
+	currChanMap%[22]:=38;
+	currChanMap%[23]:=39;
+	currChanMap%[24]:=40;
+	currChanMap%[25]:=41;
+	currChanMap%[26]:=42;
+	currChanMap%[27]:=43;
+	currChanMap%[28]:=44;
+	currChanMap%[29]:=45;
+	currChanMap%[30]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[31]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
+	currChanMap%[33]:=46;
+	currChanMap%[34]:=47;
+	currChanMap%[35]:=48;
+	currChanMap%[36]:=8; 'stiminput   
+    
+case trodeType% = 10 then '1x16 neuronexus  (H16 connector)
+	nWavChans%:=17; 'extra for stim recording
+	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
+	
+	currChanMap%[1]:=6;
+	currChanMap%[2]:=11;
+	currChanMap%[3]:=3;
+	currChanMap%[4]:=14;
+	currChanMap%[5]:=1;
+	currChanMap%[6]:=16;
+	currChanMap%[7]:=2;
+	currChanMap%[8]:=15;
+	currChanMap%[9]:=5;
+	currChanMap%[10]:=12;
+	currChanMap%[11]:=4;
+	currChanMap%[12]:=13;
+	currChanMap%[13]:=7;
+	currChanMap%[14]:=10;
+	currChanMap%[15]:=8;
+	currChanMap%[16]:=9;
+	currChanMap%[17]:=32; 'stiminput
+    
 else
 	PL("What trode type are you using?");
 endcase
@@ -2313,7 +2479,7 @@ if (retSS%=0) then
 				
 				retSW%[0]:= SampleWaveform(BOmicchannel%,micport%,BehavOnlysampleRate%); 'add waveform channel for microphone input
 				if retSW%[0] <> 0 then; PrintLog("ERROR:\t%s\n",Error$(retSW%[0]));endif;
-				SampleOptimise(2,1,5,1,10); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig
+				SampleOptimise(2,1,type1401%,1,10); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
 				PrintLog("Chan %d: Expected waveform rate: %f | Actual waveform rate: %f\n",17,SampleChanInfo(16,2),SampleChanInfo(16,4));
 				if SampleChanInfo(16,2) < 0 then PrintLog("SampleChanInfo returned ERROR: %s\n",Error$(SampleChanInfo(16,2)));endif
 				PrintLog("All channels successfully added to configuration.\n");
@@ -2327,8 +2493,7 @@ if (retSS%=0) then
 					endif
                 next;
 				if ArrSum(retSW%)=0 then 
-					'SampleOptimise(2,1,5,1,100); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig
-					SampleOptimise(2,1,5,1,100,-1,1); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig
+					SampleOptimise(2,1,type1401%,1,100,-1,1); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
 					if VERBOSELOG%=1 then PrintLog("All channels successfully added to configuration.\n"); endif
 					successDC%:=1;
 					for iDC%:=1 to savedWFChans%[0] do 
@@ -2520,7 +2685,7 @@ var iSS%,nnStim%;
 '
 ConvertStimFiles();
 FilePathSet(stimPath$);
-numStimFiles% := FileList(stimFileNames$[],0);
+numStimFiles% := FileList(stimFileNames$[],0,"*.smrx");
 '
 for iSS% := 0 to numStimFiles%-1 do
 	if iSS% mod 2 = 1 then
@@ -2534,7 +2699,11 @@ for iSS% := 0 to numStimFiles%-1 do
 	stimPctTo%[iSS%]:=100;
 	'
 	stimPctPres[iSS%]:=Round(100/numStimFiles%);
-	'TODO: arrsum check here that it adds up to 100 percent
+    
+    'var nsfbig:= numStimFiles%*10000; 'BURUNGHACK TODO: FIX ME!!!!!
+    'stimPctPres[iSS%]:=100.0/nsfbig; 'BURUNGHACK
+	'stimPctPres[iSS%]:=stimPctPres[iSS%]*10000; 'BURUNGHACK
+    'TODO: arrsum check here that it adds up to 100 percent
 	'
 	stimCodes%[iSS%]:=iSS%;
 next;
@@ -2765,6 +2934,12 @@ else
     relE:=(maxstimlength*MCmaxnummots%)+RESPWIN+Max(FEED,TIMEOUT)+ITI;
     relENO:=(maxstimlength*MCmaxnummots%)+MAXITINO; 
 endif    
+' BURUNGHACK
+'var roundTo := 1000;
+'relE:=relE*roundTo;
+'relE:=ceil(relE)/roundTo;
+'relENO:=relENO*roundTo;
+'relENO:=ceil(relENO)/roundTo;
 '
 return success%
 end
@@ -3719,7 +3894,7 @@ else
 endif
 
 'Save a copy of the stimulus file to the Epoch folder
-if (InStr(stimFileFullName$,"AskMe") <> 0 and InStr(stimFileFullName$,"NoStimFileDesired") <> 0) then
+if (InStr(stimFileFullName$,"AskMe") <> 0 or InStr(stimFileFullName$,"NoStimFileDesired") <> 0) then
     'It did not work the other way (ie if InStr()=0)...very strange behavior actually
 else
 	var sh%:=FileOpen(stimFileFullName$,1);
@@ -3890,6 +4065,11 @@ stimtimeSec:=stimsz/REALaudioOutRate;
 seqTicks:=stimtimeSec/seqPerMs*1000; 'should give number of seq ticks in curr stim
 seqTicks% := seqTicks; 'Convert to integer (is this necessary?)
 SampleSeqVar(9,seqTicks%);'send sequencer current stim length in sequencer ticks
+var retseqTicks% := SampleSeqVar(9);
+var returnedstimtime := retseqTicks% * seqPerMs / 1000;
+
+PrintLog("shouldbeStimtime = %2.6f\n",stimtimeSec);
+PrintLog("returnedStimtime = %2.6f\n",returnedstimtime);
 '
 
 View(currStimFileHandle%);
