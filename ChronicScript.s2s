@@ -2131,7 +2131,7 @@ case trodeType% = 2 then 'neuronexus poly3
 	currChanMap%[34]:=6;
 	currChanMap%[35]:=11; 'stiminput
 	
-	'sampleRate% := 17000;	'needs to be lower for so many more channels
+	sampleRate% := 17000;	'needs to be lower for so many more channels
 	
 case trodeType% = 3 then 'single platinum iridium
 	nWavChans%:=2; 'extra for stim recording
@@ -2203,7 +2203,7 @@ case trodeType% = 5 then '1 to 1 (32)
 	currChanMap%[35]:=32;
     currChanMap%[36]:=33; 'stiminput
 	
-	'sampleRate% := 20000;	'needs to be lower for so many more channels	
+	sampleRate% := 17000;	'needs to be lower for so many more channels	
 	
     
 case trodeType% = 6 then '1x16 neuronexus + 8 LFP (using plexon's every-other-channel adapter)
@@ -2301,7 +2301,7 @@ case trodeType% = 8 then '1x32 neuronexus  (A32 connector) BURUNG
 	currChanMap%[35]:=47;
 	currChanMap%[36]:=8; 'stiminput
     
-    'sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
+    sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
 
 case trodeType% = 9 then 'BURUNG: 4x8 N-Form, Modular Bionics (A32 connector)
     nWavChans%:=36; 'extra for stim recording
