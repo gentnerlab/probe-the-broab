@@ -162,7 +162,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 		WarnDlg("REQUESTEDaudioOutRate == %d NOT 40000","REQUESTEDaudioOutRate == %d NOT 40000");
 	endif
 	var REALaudioOutRate; 'This will hold the value returned by PlayWaveSpeed()
-	var maxStimMins% := 10; 'only used to constrain the buffer size.
+	var maxStimMins% := 16; 'only used to constrain the buffer size.
 	' ^Limit of Power 1401 with 256Mb RAM @ 44100Hz is around 18 mins. 
     ' If over, script will crash on 'PlayWaveCopy' and you will need to restart spike2, not just the script, to fix it.
 	if maxStimMins% > 18 then
@@ -696,15 +696,15 @@ if ret%=0 then
 				ChanTitle$(currChanMap%[0],"Aud. Stim.");
 				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 2 or trodeType% = 5) then
-				for iIR%:=1 to nWavChans% do 
+				for iIR%:=1 to currChanMap%[0]+3 do 
                     if currChanMap%[iIR%] <> -1 then
                         View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
                         'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
-                        chttl$ := Print$("Port %d", currChanMap%[iIR%-1]);
+                        chttl$ := Print$("Port %d", currChanMap%[iIR%]);
                         ChanTitle$(iIR%,chttl$);
                     endif
                 next;
-                ChanTitle$(currChanMap%[0],"Aud. Stim.");
+                ChanTitle$(currChanMap%[0]+3,"Aud. Stim.");
 				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 3) then
 				for iIR%:=1 to nWavChans% do 
@@ -717,6 +717,7 @@ if ret%=0 then
                 next;
                 ChanTitle$(currChanMap%[0],"Aud. Stim.");
 				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
+                
 			else
 				PrintLog("ERROR: Not sure which electrode type is being used. Channels are probably labeled incorrectly. trodeType% is: %d \n",trodeType%)
 			endcase
@@ -2163,7 +2164,7 @@ case trodeType% = 4 then '1 to 1 (16)
 	currChanMap%[17]:=32; 'stiminput
 	
 case trodeType% = 5 then '1 to 1 (32)
-	nWavChans%:=36;
+	nWavChans%:=32;
 	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%
 	
 	currChanMap%[1]:=1;
@@ -2201,9 +2202,8 @@ case trodeType% = 5 then '1 to 1 (32)
 	currChanMap%[33]:=30;
 	currChanMap%[34]:=31;
 	currChanMap%[35]:=32;
-    currChanMap%[36]:=33; 'stiminput
 	
-	sampleRate% := 17000;	'needs to be lower for so many more channels	
+	sampleRate% := 12000;	'needs to be lower for so many more channels	
 	
     
 case trodeType% = 6 then '1x16 neuronexus + 8 LFP (using plexon's every-other-channel adapter)
