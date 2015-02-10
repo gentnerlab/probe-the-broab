@@ -147,6 +147,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	GainList$[3] := "10";
 	var whichGainCtrl% 			:= 3; 'This value will be the DEFAULT See AdjustGains%, 0=1x, 1=2x, 2=5x, 3=10x (given by GainList$)
 	var sampleRate%         	:= 31250;
+    var sampleRate32ch%         := 20000;
+    var burstMode%              := 0; '-1: ignore, 0: off, 1: on
 	var BehavOnlysampleRate%    := 40000; 'To record BOS/whatever else is going on in box (40K might be too high, but can easily delete Behav only waveform chans if no bos on em
 	var usecpertime;
 	var timeperADC;
@@ -256,7 +258,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currentEpochStartDateTime$ := "";
     
 	' stimuli variables
-	const MAXSTIMS% := 10000;
+	const MAXSTIMS% := 242;
 	const MAXMCSTIMS% := 1000000;
 	const stimExt$ := ".wav";
 	var numStimFiles%, stimFileNames$[maxStims%], searchStimsEnabled%[maxStims%],blockStimsEnabled%[maxStims%],stimTimes[maxStims%];
@@ -657,8 +659,8 @@ if ret%=0 then
 		if qhBehavOnly% then
 			View(datahandle%).WindowTitle$("Sampled Behavioral Data");
 			ChanTitle$(30,"stimulus");
-            ChanTitle$(25,"Aud. Stim.");
-            DrawMode(25, 9, 256, 1, 96, 96, 1, 0);
+            ChanTitle$(micport%,"Aud. Stim.");
+            DrawMode(micport%, 9, 256, 1, 96, 96, 1, 0);
 		else
 			View(datahandle%).WindowTitle$("Sampled Data");			
 			docase 
@@ -803,14 +805,14 @@ end
 '
 func HPreTrial%()
 'pick stim, load it, send trial available key to sequencer then wait until bird pecks
-var timeSinceLastSizeCheck:=View(datahandle%).Maxtime()-lastSizeCheckTime;
-if (timeSinceLastSizeCheck > secondsBTSizeChecks or lastSizeCheckTime = -1) then	'Only check the size once every x minutes
-	lastSizeCheckTime := View(datahandle%).MaxTime();
-	if CheckOkFileSize%() <> 1 then    'check every n minutes (there is some overhead associated)
-		StopRecordingandSave%(0);
-		return 1;
-	endif
-endif
+'var timeSinceLastSizeCheck:=View(datahandle%).Maxtime()-lastSizeCheckTime;
+'if (timeSinceLastSizeCheck > secondsBTSizeChecks or lastSizeCheckTime = -1) then	'Only check the size once every x minutes
+'	lastSizeCheckTime := View(datahandle%).MaxTime();
+'	if CheckOkFileSize%() <> 1 then    'check every n minutes (there is some overhead associated)
+'		StopRecordingandSave%(0);
+'		return 1;
+'	endif
+'endif
 
 docase
 case qhWaitingToJump% = 1 then
@@ -826,29 +828,29 @@ return 1;
 end
 '
 '
-func CheckOkFileSize%()
-var maxfilebytes% := 2000000000; '2  GB
-var fudge := 0.975;     '50 MB
-var currFileSize;
-var currhandle%;
-'
-if SampleStatus() <> 2 then 'sampling's not happening
-	PrintLog("ERROR: this function should never be called if not sampling.\nHALTING.");
-	return -1;
-else
-	currhandle% := View();
-	View(datahandle%);
-	currFileSize := FileSize();
-	if VERBOSELOG%=1 then PL(Print$("size of: %s is %d bytes",tempdatafilename$,Ceil(currFileSize)));endif
-	if currFileSize > (maxfilebytes%*fudge) then 	'2Gb file size limit - 50Mb fudge factor
-		View(currhandle%);		
-		return 0;
-	else
-		View(currhandle%);
-		return 1;
-	endif
-endif
-end
+'func CheckOkFileSize%()
+'var maxfilebytes% := 2000000000; '2  GB
+'var fudge := 0.975;     '50 MB
+'var currFileSize;
+'var currhandle%;
+''
+'if SampleStatus() <> 2 then 'sampling's not happening
+'	PrintLog("ERROR: this function should never be called if not sampling.\nHALTING.");
+'	return -1;
+'else
+'	currhandle% := View();
+'	View(datahandle%);
+'	currFileSize := FileSize();
+'	if VERBOSELOG%=1 then PL(Print$("size of: %s is %d bytes",tempdatafilename$,Ceil(currFileSize)));endif
+'	if currFileSize > (maxfilebytes%*fudge) then 	'2Gb file size limit - 50Mb fudge factor
+'		View(currhandle%);		
+'		return 0;
+'	else
+'		View(currhandle%);
+'		return 1;
+'	endif
+'endif
+'end
 
 func HWaitingToJump%()
 if VERBOSELOG%=1 then PL("in: HWaitingToJump%"); endif
@@ -2132,7 +2134,7 @@ case trodeType% = 2 then 'neuronexus poly3
 	currChanMap%[34]:=6;
 	currChanMap%[35]:=11; 'stiminput
 	
-	sampleRate% := 17000;	'needs to be lower for so many more channels
+	sampleRate% := sampleRate32ch%;	'needs to be lower for so many more channels
 	
 case trodeType% = 3 then 'single platinum iridium
 	nWavChans%:=2; 'extra for stim recording
@@ -2203,7 +2205,7 @@ case trodeType% = 5 then '1 to 1 (32)
 	currChanMap%[34]:=31;
 	currChanMap%[35]:=32;
 	
-	sampleRate% := 12000;	'needs to be lower for so many more channels	
+	sampleRate% := sampleRate32ch%;	'needs to be lower for so many more channels	
 	
     
 case trodeType% = 6 then '1x16 neuronexus + 8 LFP (using plexon's every-other-channel adapter)
@@ -2301,7 +2303,7 @@ case trodeType% = 8 then '1x32 neuronexus  (A32 connector) BURUNG
 	currChanMap%[35]:=47;
 	currChanMap%[36]:=8; 'stiminput
     
-    sampleRate% := 17000;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
+    sampleRate% := sampleRate32ch%;	'might need to be lower for so many more channels - NOT SURE BURUNGHACK case trodeType% = 8 then '4x8 N-Form Modular Bionics X018 (A32 connector) BURUNG
 
 case trodeType% = 9 then 'BURUNG: 4x8 N-Form, Modular Bionics (A32 connector)
     nWavChans%:=36; 'extra for stim recording
@@ -2493,7 +2495,7 @@ if (retSS%=0) then
 					endif
                 next;
 				if ArrSum(retSW%)=0 then 
-					SampleOptimise(2,1,type1401%,1,100,-1,1); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
+					SampleOptimise(2,1,type1401%,1,100,-1,burstMode%); 'need to change this depending on which 1401 we use '4 for manu '5 for chronic rig '7 for burung 'BURUNGHACK
 					if VERBOSELOG%=1 then PrintLog("All channels successfully added to configuration.\n"); endif
 					successDC%:=1;
 					for iDC%:=1 to savedWFChans%[0] do 
@@ -4148,7 +4150,7 @@ case InStr(whichToolbarState$,"StartSampling") <> 0 then
 		ToolbarEnable(ADJGAINSID%,1);
 	endif
 case InStr(whichToolbarState$,"StopRecordingStayEpoch") <> 0 then
-	ToolbarEnable(STOPRECID%,0);
+	ToolbarEnable(STOPRECID%,1);
 	ToolbarEnable(RESTRTSOMECHANSID%,0);
 	ToolbarEnable(ADJGAINSID%,0);
 	ToolbarEnable(SELECTACTIVESTIMSID%,0);

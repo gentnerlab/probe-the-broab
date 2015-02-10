@@ -63,7 +63,7 @@ currentSequencer$:=SampleSequencer$();
 oldSAF% := SampleAutoFile();
 
 '*******set up path variables 
-var seqfileRB$ := GetScriptPath$() + "resetbox_seq.pls"; 
+var seqfileRB$ := GetScriptPath$() + "\\sequencer\\resetbox_seq.pls"; 
 var handle%,ret%,seqret%,retSS%,retSW%;
 SampleClear();
 retSS% := SampleSequencer(seqfileRB$);    'set sequencer file

@@ -52,3 +52,65 @@ l.	Select Block Stims - if you selected the Block protocol file, set up the bloc
 	-	Load Last View - if you had a previously recorded Epoch in the current script instance, you can apply it to the current recording by clicking this button
 1.	Press Stop Recording Epoch or Finish Experiment to finish the current recording.
 1.	Data is saved into `{subject folder}/data/Pen()/Site()/Epc()`
+
+
+# protocol variables
+
+* "protocolmode" (required)
+	* "neuronly": only neural recording (no behavior)
+	* "behavonly": only behavior (no neural recording)
+	* "neurbehav": neural recording and behavior
+* "protocolstimselectionstyle" (required)
+	* "search": loops through stimuli. displays toggle during stimulus presentation to loop a stimulus.
+	* "block": shuffles a stimulus set. terminates when block is complete.
+	* "random": randomly samples from stimulus set.
+* "micport"
+* "peckstopon"
+* "correctiontrialson"
+* "dofeedcorrectiontrials"
+* "trialsavailablecycleonminutes"
+* "trialsavailablecycleoffminutes"
+* "despctpres"
+* "despctreinf"
+* "despctto"
+* "variableratiomax"
+* "respwin"
+* "feed"
+* "timeout"
+* "iti"
+* "itino"
+* "maxitino"
+* "minitino"
+* "stimfilename"
+* "dosavemicchannel"
+* "beginhours"
+* "beginmins"
+* "endhours"
+* "endmins"
+* "dontusetodstartstop"
+
+# DigMarks
+
+### Stimulus
+* `<` (60): start of stimulus
+* `>` (62): end of stimulus
+
+### Response
+* `R` (82): right key peck
+* `C` (67): center key peck
+* `L` (76): left key peck
+
+### Consequence
+* `F` (70): Correct. Feed start
+* `f` (102): Correct. No feed
+* `}` (125): End of feed period
+* `T` (84): Incorrect. Start timeout
+* `t` (116): Incorrect. No timeout
+* `]` (93): End of timeout period
+* `N` (78): No Response
+
+### Trial logic
+* `(` (40): Start of intertrial interval
+* `)` (41): End of intertrial interval
+
+
