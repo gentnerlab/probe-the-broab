@@ -33,7 +33,7 @@ scripts used for experiment control
 It should now be recording!
 
 ### block protocol
-l.	Select Block Stims - if you selected the Block protocol file, set up the block
+1.	Select Block Stims - if you selected the Block protocol file, set up the block
 1.	Buttons present during recording (right to left):
 	-	Finish Experiment - finishes whole experiment - probably want to use ‘stop recording epoch’ instead
 	-	Pause Block <DOESN’T WORK - IGNORE>
