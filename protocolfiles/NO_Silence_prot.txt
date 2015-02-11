@@ -7,5 +7,5 @@
 "beginmins",1
 "endhours",23
 "endmins",59
-"stimfilename","D:\\experiments\\stimlib\\silenceonly.stim"
+"stimfilename","F:\\Experiments\\raw\\st316\\stims\\silenceonly.stim"
 *** END PROTOCOL FILE ***"
