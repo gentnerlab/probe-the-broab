@@ -1,0 +1,9 @@
+"***START PROTOCOL FILE***"
+"protocolmode","neuronly"
+"protocolstimselectionstyle","search"
+"stimfilename","AskMe"
+"beginhours",1
+"beginmins",1
+"endhours",23
+"endmins",59
+*** END PROTOCOL FILE ***"

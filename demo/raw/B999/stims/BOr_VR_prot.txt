@@ -1,0 +1,20 @@
+"***START PROTOCOL FILE***"
+"protocolmode","behavonly"
+"protocolstimselectionstyle","random"
+"protocoltype","normal"
+"TrialsAvailableCycleOnMinutes",25
+"TrialsAvailableCycleOffMinutes",5
+"stimfilename","AskMe"
+"micport",10
+"beginhours",09
+"beginmins",00
+"endhours",23
+"endmins",00
+"timeout",30
+"iti",10
+"feed",1.8
+"correctiontrialson",1
+"dofeedcorrectiontrials",0
+"dosavemicchannel",1
+"variableratiomax",3
+*** END PROTOCOL FILE ***"
