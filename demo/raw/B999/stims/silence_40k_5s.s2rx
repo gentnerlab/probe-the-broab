@@ -2,7 +2,7 @@
 <CEDResources>
 	<DocTime>
 		<View>
-			<WPlace flags="0" showc="1" minx="-1" miny="-1" maxx="-1" maxy="-1" t="75" b="596" l="75" r="1501"/>
+			<WPlace flags="0" showc="1" minx="-1" miny="-1" maxx="-1" maxy="-1" t="0" b="521" l="0" r="1426"/>
 			<Font hgt="-11" wgt="400" paf="16" fnam="Times New Roman"/>
 			<Chan Chan="0" DMode="11" DWidth="-2.4999999999999998e-5" DDSize="-1" AxMin="-5" AxMax="5" AdcAxMin="-5" AdcAxMax="5" FreqAxMax="20000" AxType="1" ChType="1" BackOv="0"/>
 			<XInfo Right="0.9999949999999999" XAxSmall="5" CRBack="0" VCLabMode="2" HCLabMode="1" VCCount="1">
