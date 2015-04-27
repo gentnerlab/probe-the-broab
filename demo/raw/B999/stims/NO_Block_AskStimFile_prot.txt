@@ -1,0 +1,5 @@
+"***START PROTOCOL FILE***"
+"protocolmode","neuronly"
+"protocolstimselectionstyle","block"
+"stimfilename","AskMe"
+*** END PROTOCOL FILE ***"
