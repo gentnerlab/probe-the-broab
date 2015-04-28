@@ -50,7 +50,6 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
     var expPathRoot$      := "";    
     var stimLibPath$      := "";
     var type1401% := 0;
-    var retFPS%;
     
     
     
@@ -66,51 +65,35 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
             expPathRoot$      := "E:\\experiments\\raw\\";
             stimLibPath$      := "E:\\experiments\\stimlib\\";
        
-        case InStr("manu", host$) then
-            type1401% := 4;
-            expPathRoot$      := "F:\\Experiments\\raw\\";
-            stimLibPath$      := "F:\\Experiments\\stimlib\\";
+'        case InStr("manu", host$) then
+'            var type1401% := 4;
+'            const MAXWAVCHANS% := 16;
+'            var expPathRoot$      := "F:\\Experiments\\raw\\";
+'            var stimLibPath$      := "F:\\Experiments\\stimlib\\";
         
         case InStr("burung", host$) then
             type1401% := 7;
             expPathRoot$      := "F:\\Experiments\\raw\\";
             stimLibPath$      := "F:\\Experiments\\stimlib\\";
         
-        else
+'        else
+'        
+'            retFPS%:=FilePathSet(expPathRoot$,0,"Select data folder.");
+'            if retFPS% < 0 then  
+'                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
+'                halt; 
+'            else 
+'                expPathRoot$ := FilePath$();
+'            endif;
+'        
+'            retFPS%:=FilePathSet(expPathRoot$,0,"Select stimulus library.");
+'            if retFPS% < 0 then  
+'                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
+'                halt; 
+'            else 
+'                stimLibPath$ := FilePath$();
+'            endif;
         
-            retFPS%:=FilePathSet(expPathRoot$,0,"Select data folder.");
-            if retFPS% < 0 then  
-                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
-                halt; 
-            else 
-                expPathRoot$ := FilePath$();
-            endif;
-        
-            retFPS%:=FilePathSet(expPathRoot$,0,"Select stimulus library.");
-            if retFPS% < 0 then  
-                PrintLog(Print$("No file path set...exiting script. Error: %s",Error$(retFPS%)));
-                halt; 
-            else 
-                stimLibPath$ := FilePath$();
-        
-            type1401% := 7;
-            var hwList$[10];
-            hwList$[0]:="Works with all supported 1401s except a 1401plus with an old ADC.";
-            hwList$[1]:="1401plus with an old ADC. (*)";
-            hwList$[2]:="Power1401";
-            hwList$[3]:="1401plus or a micro1401 (*)";
-            hwList$[4]:="Micro1401 mk II";
-            hwList$[5]:="Power1401 625";
-            hwList$[6]:="micro1401 mk I (*)";
-            hwList$[7]:="Power1401 mk II";
-            hwList$[8]:="Micro1401-3"; 
-            hwList$[9]:="Power1401-3";
-            
-            DlgCreate("What kind of 1401?",30,.1,0,7,-1,0);
-            DlgList(1,65,hwList$[]);
-            DlgButton(0,"");
-            DlgShow(type1401%);
-        endif;
     endcase;
     
 	' define paths
@@ -124,9 +107,8 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var stimPath$		:= subjectpath$+"stims\\";
 	var dataPathRoot$ 	:= subjectpath$+"data\\";
 	var dataPathPenetration$,dataPathRecordingSite$,dataPathEpoch$;
-	'var subjectID$	 	:=Left$(Right$(subjectpath$,Len(subjectpath$)-19),Len(Right$(subjectpath$,Len(subjectpath$)-19))-1); 'TODO: fix and make robust to changes in path length
-    var subjectID$      := DelStr$(subjectpath$,1,Len(expPathRoot$));
-    subjectID$ := DelStr$(subjectID$,Len(subjectID$),1);
+	var subjectID$	 	:=Left$(Right$(subjectpath$,Len(subjectpath$)-19),Len(Right$(subjectpath$,Len(subjectpath$)-19))-1); 'TODO: fix and make robust to changes in path length
+    
     ' define available sequencer files
 	var chronNOseq$       := seqPath$ + "chron_seq_NeurOnly.pls";
 	var chronNBseq2AC$    := seqPath$ + "chron_seq_2ac_VR.pls";
@@ -209,7 +191,6 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var AllTrialsHandle%:=-1;
 	var AllTrialsName$:= subjectpath$+subjectID$+".AllTrials";
 	var subjectInfoName$:=subjectpath$+subjectID$+".SubjectInfo";
-    PrintLog("\nSubject Info File: %s", subjectInfoName$)
 	var subjectInfoHandle% := -1;
 	var currWFChan%[17],currVChan%[17],currCARChan%[17];
 	currCARChan%[0]:=0;

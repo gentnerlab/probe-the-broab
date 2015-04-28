@@ -1,5 +1,5 @@
-;go here for ascii codes:      http://www.asciitable.com/           
-                SET    0.010,1,0       ;Get rate & scaling OK
+;go here for ascii codes:      http://www.asciitable.com/               
+                SET    0.020,1,0       ;Get rate & scaling OK
 
                 VAR    V1,YES=1
                 VAR    V2,NO=0
