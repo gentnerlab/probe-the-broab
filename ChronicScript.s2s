@@ -258,7 +258,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var currentEpochStartDateTime$ := "";
     
 	' stimuli variables
-	const MAXSTIMS% := 242;
+	const MAXSTIMS% := 2000;
 	const MAXMCSTIMS% := 1000000;
 	const stimExt$ := ".wav";
 	var numStimFiles%, stimFileNames$[maxStims%], searchStimsEnabled%[maxStims%],blockStimsEnabled%[maxStims%],stimTimes[maxStims%];
@@ -2707,7 +2707,7 @@ for iSS% := 0 to numStimFiles%-1 do
 	'stimPctPres[iSS%]:=stimPctPres[iSS%]*10000; 'BURUNGHACK
     'TODO: arrsum check here that it adds up to 100 percent
 	'
-	stimCodes%[iSS%]:=iSS%;
+	stimCodes%[iSS%]:=1;
 next;
 '
 return 1
