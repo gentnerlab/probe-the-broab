@@ -298,6 +298,10 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var RESPWIN     := 2.0;   'response window duration in seconds
 	var FEED        := 2.0;	  'feed duration in seconds
 	var TIMEOUT     := 10.0;  'timeout duration in seconds
+'	var L_FEED      := FEED;	  'feed duration in seconds
+'	var R_FEED      := FEED;	  'feed duration in seconds
+'	var L_TIMEOUT   := TIMEOUT;  'timeout duration in seconds
+'	var R_TIMEOUT   := TIMEOUT;  'timeout duration in seconds
 	var ITI         := 2.0;   'intertrial interval in seconds
 	var ITINO;
 	var MINITINO    := 3.0;  'minimum intertrial interval in seconds for neural recording only
