@@ -1,0 +1,4 @@
+Pass     0 - Self test ADC read from channel 134 ADMODE = 0x00, mean level = 8069 (code 18) at 10:51:09 29/Jan/15 
+Pass     0 - Self test Cross-talk (bits) for ref-DC = 52.23 (code 16) at 10:51:09 29/Jan/15 
+Pass     0 - Self test DAC/ADC badly aligned. Maximum error = 1.56% (code 71) at 10:51:09 29/Jan/15 
+Pass     0 - Self test DAC silo (clock 2) DAC 0 bad value (DFIFO) after tick (code 155) at 10:51:09 29/Jan/15 

@@ -1,7 +1,0 @@
-2015-04-07+14-34-40:	Created Subject Info File for \Documents\GitHub\probe-the-broab\demo\raw\B999
-"Behavior type","2AC"
-
-
-------
-
-"2015-04-07+14-34-57","Epoch","Epc01_2015-04-07+14-34-56_BO_B",1,""
