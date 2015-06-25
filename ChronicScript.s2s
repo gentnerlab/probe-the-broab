@@ -148,7 +148,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var whichGainCtrl% 			:= 3; 'This value will be the DEFAULT See AdjustGains%, 0=1x, 1=2x, 2=5x, 3=10x (given by GainList$)
 	var sampleRate%         	:= 31250;
     var sampleRate32ch%         := 20000;
-    var burstMode%              := 0; '-1: ignore, 0: off, 1: on
+    var burstMode%              := 1; '-1: ignore, 0: off, 1: on
 	var BehavOnlysampleRate%    := 40000; 'To record BOS/whatever else is going on in box (40K might be too high, but can easily delete Behav only waveform chans if no bos on em
 	var usecpertime;
 	var timeperADC;
@@ -698,16 +698,30 @@ if ret%=0 then
 				ChanTitle$(currChanMap%[0],"Aud. Stim.");
 				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 2 or trodeType% = 5) then
-				for iIR%:=1 to currChanMap%[0]+3 do 
+				for iIR%:=1 to currChanMap%[0]+4 do 
                     if currChanMap%[iIR%] <> -1 then
                         View(datahandle%).YRange(iIR%,ymin[iIR%],ymax[iIR%]);
                         'PrintLog("ymin[%d]:%g \tymax[%d]:%g\n", iIR%, ymin[iIR%], iIR%, ymax[iIR%]); 
                         chttl$ := Print$("Port %d", currChanMap%[iIR%]);
                         ChanTitle$(iIR%,chttl$);
                     endif
+'                    if(iIR%<30) then 
+'                        if (iR% mod 3)=0 then
+'                            ChanColour(iIR%,1,9);
+'					else
+'						if (iIR%=33) then  
+'							ChanColour(iIR%,1,4);
+'						else
+'							if (iIR%=32) then    
+'								ChanColour(iIR%,1,5);
+'							else
+'								ChanColour(iIR%,1,6);
+'							endif
+'						endif
+'					endif
                 next;
-                ChanTitle$(currChanMap%[0]+3,"Aud. Stim.");
-				DrawMode(currChanMap%[0], 9, 256, 1, 96, 96, 1, 0);
+                ChanTitle$(currChanMap%[0]+4,"Aud. Stim.");
+				DrawMode(currChanMap%[0]+4, 9, 256, 1, 96, 96, 1, 0);
 			case(trodeType% = 3) then
 				for iIR%:=1 to nWavChans% do 
                     if currChanMap%[iIR%] <> -1 then
@@ -2095,7 +2109,7 @@ case trodeType% = 1 then '1x16 neuronexus  (F16)
 	currChanMap%[17]:=32; 'stiminput
 	
 case trodeType% = 2 then 'neuronexus poly3
-	nWavChans%:=32;
+	nWavChans%:=33; 'extra for stim recording
 	currChanMap%[0]:=nWavChans%; 'Relevant size of currChanMap%	
 	
 	currChanMap%[1]:=19;
@@ -2132,7 +2146,8 @@ case trodeType% = 2 then 'neuronexus poly3
 	currChanMap%[32]:=-1;'should be skipped due to crazy indexing in savedWFChans% due to chans 30, 31, 32 being reserved
 	currChanMap%[33]:=10;
 	currChanMap%[34]:=6;
-	currChanMap%[35]:=11; 'stiminput
+	currChanMap%[35]:=11; 
+    currChanMap%[36]:=14; 'stim input
 	
 	sampleRate% := sampleRate32ch%;	'needs to be lower for so many more channels
 	
@@ -3785,16 +3800,16 @@ if SampleStop() = 0 then
 			goSRAS%:=1;
 		endif
         
-        ExportChanList();                        
-        ExportChanList(0,View(datahandle%).MaxTime(),-1);
-        matSRAS%:=FileSaveAs(savename$+".mat",100,1,"",0,"UseSName=0|UseCName=1|WaveData=0|WaveAll=1|WaveSameN=1|Compat=4");
-        
-        if matSRAS% <> 0 then
-			PL(Print$("Error exporting to Matlab using FileSaveAs.  Error: %s",Error$(matSRAS%)));
-		else		
-			PL(Print$("\nData exported to Matlab successfully as: %s\n\n",FileName$(0)));
-			SaveLog(1,FileName$(3)+FileName$(4));
-		endif
+'        ExportChanList();                        
+'        ExportChanList(0,View(datahandle%).MaxTime(),-1);
+'        matSRAS%:=FileSaveAs(savename$+".mat",100,1,"",0,"UseSName=0|UseCName=1|WaveData=0|WaveAll=1|WaveSameN=1|Compat=4");
+'        
+'        if matSRAS% <> 0 then
+'			PL(Print$("Error exporting to Matlab using FileSaveAs.  Error: %s",Error$(matSRAS%)));
+'		else		
+'			PL(Print$("\nData exported to Matlab successfully as: %s\n\n",FileName$(0)));
+'			SaveLog(1,FileName$(3)+FileName$(4));
+'		endif
         
     wend
 	FrontView(LogHandle());
