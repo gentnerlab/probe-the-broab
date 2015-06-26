@@ -125,7 +125,7 @@ tmpind2% := InStr(sitepath$,"\\data\\");
 birdrawpath$[numExpts%] := Left$(sitepath$,tmpind2%);
 tmpind3% := InStr(birdrawpath$[numExpts%],"\\raw\\");
 birdanalyzsispath$[numExpts%] := Left$(birdrawpath$[numExpts%],tmpind3%) + "analysis\\" + bird$[numExpts%];
-birdcatpath$[numExpts%] := birdanalyzsispath$[numExpts%] + "\\catfiles\\";
+birdcatpath$[numExpts%] := birdanalyzsispath$[numExpts%] + "\\matfiles\\";
 catPath$[numExpts%] := birdcatpath$[numExpts%] + pen$[numExpts%] + "__" + site$[numExpts%] + "\\";
 
 PrintLog("birdanalyzsispath$ : %s\n",birdanalyzsispath$[numExpts%]);
@@ -269,6 +269,7 @@ for catNum% := 1 to numExpts% do
 		datafilehandle% := FileOpen(filesToExport$[catNum%][fileNum%-1],0,0);
         savename$ := filesToExport$[catNum%][fileNum%-1];
         savename$ := catPath$[catNum%]+DelStr$(savename$,0,InStr(savename$,"\\Sub"));
+        savename$ := DelStr$(savename$,InStr(savename$,".smr"),Len(savename$)) + ".mat";
 		PrintLog("saving %s to export files\n", filesToExport$[catNum%][fileNum%-1]);
 		PrintLog("saving as %s\n", savename$);
         
@@ -315,58 +316,58 @@ return -1;
 end
 '
 func SetOutChans%()
-var ssc%,ssc1%,ssc2%,ssc3%,chooseWFChans%[nChans%+2];
-outChans%[0]:=0;
-tottime:=0;
-totsize:=0;
-
-DlgCreate("Pick channels to export",32.5,0.1,60,nChans%+5,-1,0);
-DlgButton(1,"Save Checked Channels",0,24,(nChans%/2)+2);
-DlgButton(0,"Save All Channels",0,26.5,(nChans%/2)+3);
-DlgButton(5,"*Give up on this export*",0,30,(nChans%)+5);
-
-
-for ssc% :=1 to allChans%[0] do
-	DlgCheck(ssc%,Print$("%d_%s",allChans%[ssc%],ChanTitle$(allChans%[ssc%])),10,1+ssc%);
-	'CheckSome%(ssc%);
-next;
-
-DlgButton(2,"Select all",SelectAllSSC%,29.5,(nChans%/2)-3);
-DlgButton(3,"Clear all",ClearAllSSC%,30,(nChans%/2)-1.5);
-DlgButton(4,"Defaults",CheckSome%,30,(nChans%/2)-4.5);
-
-DlgReal(allChans%[0]+1,"Export Sec (4260max):",0,100000,30,(nChans%)+3);
-DlgReal(allChans%[0]+2,"Export aproxMB (2000max):",0,100000,30,(nChans%)+4);
-DlgAllow(1,Idle%);
-
-var retret%;
-retret%:=DlgShow(chooseWFChans%[0:allChans%[0]],tottime,totsize);
-if retret%=5 then
-	PL("User canceled this export, rolling back current export setup");
-	return -1;
-endif
+'var ssc%,ssc1%,ssc2%,ssc3%,chooseWFChans%[nChans%+2];
+'outChans%[0]:=0;
+'tottime:=0;
+'totsize:=0;
 '
-if  retret%=0 then
-	PL("Saving all channels.");
-	View(arrangeHandle%[numExpts%]).Print("Saving all channels.");
-	ArrConst(outChans%,0);
-	for ssc1%:=0 to allChans%[0] do	
-		outChans%[ssc1%]:=allChans%[ssc1%];
-	next
-else
-	PrintLog("\nUser selected the following channels to save\n");
-	View(arrangeHandle%[numExpts%]).Print("\nUser selected the following channels to save\n");
-	for ssc2%:=1 to nChans% do
-		if chooseWFChans%[ssc2%-1] = 1 then	
-			outChans%[0]+=1;
-			outChans%[outChans%[0]]:=allChans%[ssc2%];
-			PrintLog(", %d",outChans%[outChans%[0]]);
-			View(arrangeHandle%[numExpts%]).Print(", %d",outChans%[outChans%[0]]);
-		endif
-	next
-	PrintLog("\n");
-endif
-
+'DlgCreate("Pick channels to export",32.5,0.1,60,nChans%+5,-1,0);
+'DlgButton(1,"Save Checked Channels",0,24,(nChans%/2)+2);
+'DlgButton(0,"Save All Channels",0,26.5,(nChans%/2)+3);
+'DlgButton(5,"*Give up on this export*",0,30,(nChans%)+5);
+'
+'
+'for ssc% :=1 to allChans%[0] do
+'	DlgCheck(ssc%,Print$("%d_%s",allChans%[ssc%],ChanTitle$(allChans%[ssc%])),10,1+ssc%);
+'	'CheckSome%(ssc%);
+'next;
+'
+'DlgButton(2,"Select all",SelectAllSSC%,29.5,(nChans%/2)-3);
+'DlgButton(3,"Clear all",ClearAllSSC%,30,(nChans%/2)-1.5);
+'DlgButton(4,"Defaults",CheckSome%,30,(nChans%/2)-4.5);
+'
+'DlgReal(allChans%[0]+1,"Export Sec (4260max):",0,100000,30,(nChans%)+3);
+'DlgReal(allChans%[0]+2,"Export aproxMB (2000max):",0,100000,30,(nChans%)+4);
+'DlgAllow(1,Idle%);
+'
+'var retret%;
+'retret%:=DlgShow(chooseWFChans%[0:allChans%[0]],tottime,totsize);
+'if retret%=5 then
+'	PL("User canceled this export, rolling back current export setup");
+'	return -1;
+'endif
+''
+'if  retret%=0 then
+'	PL("Saving all channels.");
+'	View(arrangeHandle%[numExpts%]).Print("Saving all channels.");
+'	ArrConst(outChans%,0);
+'	for ssc1%:=0 to allChans%[0] do	
+'		outChans%[ssc1%]:=allChans%[ssc1%];
+'	next
+'else
+'	PrintLog("\nUser selected the following channels to save\n");
+'	View(arrangeHandle%[numExpts%]).Print("\nUser selected the following channels to save\n");
+'	for ssc2%:=1 to nChans% do
+'		if chooseWFChans%[ssc2%-1] = 1 then	
+'			outChans%[0]+=1;
+'			outChans%[outChans%[0]]:=allChans%[ssc2%];
+'			PrintLog(", %d",outChans%[outChans%[0]]);
+'			View(arrangeHandle%[numExpts%]).Print(", %d",outChans%[outChans%[0]]);
+'		endif
+'	next
+'	PrintLog("\n");
+'endif
+'
 'for ssc3%:=1 to outChans%[0] do 'have to do this because chans 30-32 are hardcoded for keyboard, textmark, and digmark
 '	if outChans%[ssc3%] > 29 then
 '		docase
