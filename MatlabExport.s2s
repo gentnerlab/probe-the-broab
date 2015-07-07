@@ -1,13 +1,6 @@
 'exportchan-ChronRig.s2s
 'Created by DPK 09/18/08 from sort16tet_chronrig.s2s
 
-' THIS IS THE CORRECT CONCAT FILE BUT BIG WARNING
-
-'WARNING!!!
-'This script sometimes drops the date timestamp marker for one of the subfiles - this is absolutely unacceptable and needs to be fixed
-'quickest fix: add a check for an equal number of date textmarks (F3 code)
-'better fix: figure out why they're being dropped and fix it
-'best fix: save an absolute timestamp at each trial instead of a relative one - requires redoing the read S2mat mfile
 
 #include "include/chron_include.s2s" 
 
@@ -39,8 +32,6 @@ const textmarkchan%	:= 30;
 const keyboardchan%	:= 31; 
 const digchan% 		:= 32;
 
-'var todChan% := 33; 'WARNING: careful when hardcoding channel numbers
-'var todChan% := 50;
 
 const HANDLERID% := 0;
 const CANCELCATID% := 1;
@@ -57,7 +48,7 @@ var fileTimes[LARGE%][LARGE%];
 var fileSizes%[LARGE%][LARGE%];
 var fileChanNums%[LARGE%][LARGE%];
 var catsizes[LARGE%],cattimes[LARGE%];
-var catFname$[LARGE%];
+var exportName$[LARGE%];
 var bOutChans%[LARGE%][LARGE%];
 var nChans%,numChans%[LARGE%];
 var allChans%[LARGE%];
@@ -121,16 +112,35 @@ bird$[numExpts%] := Right$(sitepath$,Len(sitepath$)-tmpind1%-15);
 tmpind2% := InStr(bird$[numExpts%],"\\data\\");
 bird$[numExpts%] := Left$(bird$[numExpts%],tmpind2%-1);
 
+
+var trash$[LARGE%];
+var numMultExpt% := 0,dummy%:=0;
+numMultExpt% := FileList(trash$[],0,"cat*");
+
+
 tmpind2% := InStr(sitepath$,"\\data\\");
 birdrawpath$[numExpts%] := Left$(sitepath$,tmpind2%);
 tmpind3% := InStr(birdrawpath$[numExpts%],"\\raw\\");
 birdanalyzsispath$[numExpts%] := Left$(birdrawpath$[numExpts%],tmpind3%) + "analysis\\" + bird$[numExpts%];
-birdcatpath$[numExpts%] := birdanalyzsispath$[numExpts%] + "\\matfiles\\";
-catPath$[numExpts%] := birdcatpath$[numExpts%] + pen$[numExpts%] + "__" + site$[numExpts%] + "\\";
-
 PrintLog("birdanalyzsispath$ : %s\n",birdanalyzsispath$[numExpts%]);
+FilePathSet(birdanalyzsispath$[numExpts%],0,1); 'this allows us to make the "birdanalysispath" dir if it doesn't exist
+
+birdcatpath$[numExpts%] := birdanalyzsispath$[numExpts%] + "\\matfiles\\";
 PrintLog("birdcatpath$ : %s\n",birdcatpath$[numExpts%]);
+FilePathSet(birdcatpath$[numExpts%],0,1); 'this allows us to make the "birdcatpath" dir if it doesn't exist
+
+'sitecatpath$[numExpts%] := birdcatpath$[numExpts%] + pen$[numExpts%] + "__" + site$[numExpts%] + "\\"
+'PrintLog("sitecatpath$ : %s\n",sitecatpath$[numExpts%]);
+'FilePathSet(sitecatpath$[numExpts%],0,1); 'this allows us to make the "sitecatpath" dir if it doesn't exist
+
+
+exportName$[numExpts%] := Print$("%s_cat_P%s_S%s_%d",bird$[numExpts%],Right$(Left$(Pen$[numExpts%],5),2),Right$(Left$(Site$[numExpts%],6),2),numMultExpt%+numExpts%);
+exportName$[numExpts%]:=Input$("Enter final export name, or use provided autoname",exportName$[numExpts%]);
+
+catPath$[numExpts%] := birdcatpath$[numExpts%] + pen$[numExpts%] + "__" + site$[numExpts%] + "__" + exportName$[numExpts%] + "\\";
+
 PrintLog("catPath$ : %s\n",catPath$[numExpts%]);
+FilePathSet(catPath$[numExpts%],0,1);	'this allows us to make the "catpath" dir if it doesn't exist
 
 '
 arrangeHandle%[numExpts%]:=FileNew(1,1);
@@ -192,50 +202,19 @@ wend;
 ReadSetup();
 '
 
-'PrintLog("opening %s\n", filesToExport$[numExpts%]);
 chanfilehandle% := FileOpen(filesToExport$[numExpts%][0],0);			
 View(chanfilehandle%);	
-'var memtodChan%:=AddTODChan%();
-'MemSave(memtodChan%,todChan%,8); 'saves the mem chan as a textmark into channel todChan%
-'ChanDelete(memtodChan%);
-'ChanShow(todChan%);
 
 numChans%[numExpts%] := ChanList(allChans%[],2097152); 'excludes virtual chans (in case they got left there after soft referencing during recording)
 nChans%:=numChans%[numExpts%];
-if SetOutChans%() = -1 then 'User canceled current Export
-	site$[numExpts%] := "";
-    pen$[numExpts%] := "";
-	arrangeHandle%[numExpts%] := -1;
-	ArrConst(filesToExport$[numExpts%][:],"");
-	ArrConst(fileTimes[numExpts%][:],0);
-	ArrConst(fileSizes%[numExpts%][:],0);
-	ArrConst(fileChanNums%[numExpts%][:],0);
-	numFilesToExport%[numExpts%]:=0;
-	catPath$[numExpts%] := "";
-	numChans%[numExpts%] := 0;
-	numExpts%-=1;
-	'ChanDelete(todChan%); 'delete the TOD TM channel created in AddTODChan%() TOTALLY inneficient Hack
-	view(chanfilehandle%);
-	FileClose(0,-1);
-	ToolbarEnable(DOCONCATID%,1);
-	return 1;
-endif	
 cattimes[numExpts%]:=tottime;
 catsizes[numExpts%]:=totsize;
 ArrConst(bOutChans%[numExpts%][],outChans%[]); 'copy outchans to boutchans (batch out chans)
 ArrConst(allChans%[],0);
 view(chanfilehandle%);
-'ChanDelete(todChan%); 'delete the TOD TM channel created in AddTODChan%() TOTALLY inneficient Hack
 FileClose(0,-1);
 
-FilePathSet(birdanalyzsispath$[numExpts%],0,1); 'this allows us to make the "birdanalysispath" dir if it doesn't exist
-FilePathSet(birdcatpath$[numExpts%],0,1); 'this allows us to make the "birdcatpath" dir if it doesn't exist
-FilePathSet(catPath$[numExpts%],0,1);	'this allows us to make the "catpath" dir if it doesn't exist
-var trash$[LARGE%];
-var numMultExpt% := 0,dummy%:=0;
-numMultExpt% := FileList(trash$[],0,"cat*");
-catFname$[numExpts%] := Print$("%s_cat_P%s_S%s_%d.smr",bird$[numExpts%],Right$(Left$(Pen$[numExpts%],5),2),Right$(Left$(Site$[numExpts%],6),2),numMultExpt%+numExpts%);
-catFname$[numExpts%]:=Input$("Enter final export file name, or use provided autoname",catFname$[numExpts%]);
+
 FilePathSet(expPathRoot$);
 
 
@@ -268,8 +247,8 @@ for catNum% := 1 to numExpts% do
         Draw();        
 		datafilehandle% := FileOpen(filesToExport$[catNum%][fileNum%-1],0,0);
         savename$ := filesToExport$[catNum%][fileNum%-1];
-        savename$ := catPath$[catNum%]+DelStr$(savename$,0,InStr(savename$,"\\Sub"));
-        savename$ := DelStr$(savename$,InStr(savename$,".smr"),Len(savename$)) + ".mat";
+        savename$ := DelStr$(savename$,0,InStr(savename$,"\\Sub"));
+        savename$ := DelStr$(savename$,InStr(savename$,".smr"),Len(savename$));
 		PrintLog("saving %s to export files\n", filesToExport$[catNum%][fileNum%-1]);
 		PrintLog("saving as %s\n", savename$);
         
@@ -277,7 +256,7 @@ for catNum% := 1 to numExpts% do
         
         ExportChanList();                        
         ExportChanList(0,View(datafilehandle%).MaxTime(),-1);
-        matSRAS%:=FileSaveAs(savename$+".mat",100,1,"",0,"UseSName=0|UseCName=1|WaveTimes=1|WaveData=0|WaveAll=1|WaveSameN=1|Compat=4");
+        matSRAS%:=FileSaveAs(catPath$[catNum%]+savename$+".mat",100,1,"",0,"UseSName=0|UseCName=1|WaveTimes=1|WaveData=0|WaveAll=1|WaveSameN=1|Compat=4");
         
         if matSRAS% <> 0 then
 			PL(Print$("Error exporting to Matlab using FileSaveAs.  Error: %s",Error$(matSRAS%)));
@@ -289,22 +268,14 @@ for catNum% := 1 to numExpts% do
 	next;
 	
 	
-	'save log file for each export file	
-	
-'	PrintLog("saving the file %s in %s\n", catFname$[catNum%], catPath$[catNum%]);        
-'	retFSA%:=FileSaveAs(catFname$[catNum%]);  'save the new exported file
-'	PrintLog("FileSaveAs returned %d",retFSA%);
-'	FileClose();
-	
-	'Add error control here
 	
 	'save arrange handles
 	View(arrangeHandle%[catNum%]);
-	catLogName$ := Left$(catFname$[catNum%],(Len(catFname$[catNum%])-4))+".catLog";
+	catLogName$ := exportName$[catNum%]+".catLog";
 	FileSaveAs(catLogName$);
 	FileClose(arrangeHandle%[catNum%],-1);
 	View(LogHandle());
-	var catLogLogName$ := Left$(catFname$[catNum%],(Len(catFname$[catNum%])-4))+".catLogLog";
+	var catLogLogName$ := exportName$[catNum%]+".catLogLog";
 	FileSaveAs(catLogLogName$);
 	FilePathSet(expPathRoot$);
 	
@@ -313,75 +284,6 @@ end;
 '
 func CancelExpt%()
 return -1;
-end
-'
-func SetOutChans%()
-'var ssc%,ssc1%,ssc2%,ssc3%,chooseWFChans%[nChans%+2];
-'outChans%[0]:=0;
-'tottime:=0;
-'totsize:=0;
-'
-'DlgCreate("Pick channels to export",32.5,0.1,60,nChans%+5,-1,0);
-'DlgButton(1,"Save Checked Channels",0,24,(nChans%/2)+2);
-'DlgButton(0,"Save All Channels",0,26.5,(nChans%/2)+3);
-'DlgButton(5,"*Give up on this export*",0,30,(nChans%)+5);
-'
-'
-'for ssc% :=1 to allChans%[0] do
-'	DlgCheck(ssc%,Print$("%d_%s",allChans%[ssc%],ChanTitle$(allChans%[ssc%])),10,1+ssc%);
-'	'CheckSome%(ssc%);
-'next;
-'
-'DlgButton(2,"Select all",SelectAllSSC%,29.5,(nChans%/2)-3);
-'DlgButton(3,"Clear all",ClearAllSSC%,30,(nChans%/2)-1.5);
-'DlgButton(4,"Defaults",CheckSome%,30,(nChans%/2)-4.5);
-'
-'DlgReal(allChans%[0]+1,"Export Sec (4260max):",0,100000,30,(nChans%)+3);
-'DlgReal(allChans%[0]+2,"Export aproxMB (2000max):",0,100000,30,(nChans%)+4);
-'DlgAllow(1,Idle%);
-'
-'var retret%;
-'retret%:=DlgShow(chooseWFChans%[0:allChans%[0]],tottime,totsize);
-'if retret%=5 then
-'	PL("User canceled this export, rolling back current export setup");
-'	return -1;
-'endif
-''
-'if  retret%=0 then
-'	PL("Saving all channels.");
-'	View(arrangeHandle%[numExpts%]).Print("Saving all channels.");
-'	ArrConst(outChans%,0);
-'	for ssc1%:=0 to allChans%[0] do	
-'		outChans%[ssc1%]:=allChans%[ssc1%];
-'	next
-'else
-'	PrintLog("\nUser selected the following channels to save\n");
-'	View(arrangeHandle%[numExpts%]).Print("\nUser selected the following channels to save\n");
-'	for ssc2%:=1 to nChans% do
-'		if chooseWFChans%[ssc2%-1] = 1 then	
-'			outChans%[0]+=1;
-'			outChans%[outChans%[0]]:=allChans%[ssc2%];
-'			PrintLog(", %d",outChans%[outChans%[0]]);
-'			View(arrangeHandle%[numExpts%]).Print(", %d",outChans%[outChans%[0]]);
-'		endif
-'	next
-'	PrintLog("\n");
-'endif
-'
-'for ssc3%:=1 to outChans%[0] do 'have to do this because chans 30-32 are hardcoded for keyboard, textmark, and digmark
-'	if outChans%[ssc3%] > 29 then
-'		docase
-'		case outChans%[ssc3%] = 30 then
-'			outChans%[ssc3%] := 33;
-'		case outChans%[ssc3%] = 31 then
-'			outChans%[ssc3%] := 34;
-'		case outChans%[ssc3%] = 32 then
-'			outChans%[ssc3%] := 35;
-'		endcase;
-'	endif;
-'next;
-
-return 1;
 end
 '
 func SelectAllSSC%()
@@ -430,7 +332,6 @@ if digmarkNEWID% = 0 then
 endif
 
 var memchanID%,memindex%:=0,retmindex%;
-'var desuspertick := 40;
 
 var memchanID2%;
 var numM1%,numM2%;
@@ -438,9 +339,6 @@ var numM1%,numM2%;
 
 memchanID% := MemChan(5);
 numM1%:=DownsampleMarkerChan%(digmarkID%,memchanID%,desuspertick);
-if numM1% <> 0 then
-    'Message("Digmark to MemChan1: %d events moved",numM1%);
-endif
 '
 
 memchanID2% := MemChan(5);
@@ -593,38 +491,3 @@ if mc%>0 then                            'Created OK?
 endif;
 return mc%; 'Return the new memory channel number
 end;
-
-
-'
-'func AddTODChan%()
-''Need to preserve TOD info for chron rig 
-'var tmChans%[SMALL%],tmChan%,mc%,numTMchans%;
-''	numTMchans%:=ChanList(tmChans%[],32);	
-''	if numTMchans% <> 1 then
-''		Message("I found more (or less) than one textmark channel.\nI don't know what to do, exiting script.");
-''		halt;
-''	endif
-''tmChan%:=tmChans%[1];	
-'tmChan%:=30;  'WARNING: careful about hardcoding channel numbers....
-'mc% := MemChan(0,tmChan%);                
-'if mc%>0 then                            'Created OK?
-'	ChanComment$(mc%, "Copy of channel "+Str$(tmChan%));
-'	MemImport(mc%, tmChan%, 0, MaxTime());  'Copy data
-'	ChanTitle$(mc%,"stim&TOD");
-'	ChanShow(mc%);                        'display new channel
-'endif;
-'var fTime$,fDate$,tmString$,tmCode%[4];
-'fTime$ := FileTime$(1,7,0,"-");
-'fDate$:=FileDate$(2,2,3,3,"-");
-'tmString$:="date_"+fDate$+"+"+fTime$+"_filetime_0.010000";
-'tmCode%[0]:=243;
-'tmCode%[1]:=243;
-'tmCode%[2]:=243;
-'tmCode%[3]:=243;
-'MemSetItem(mc%,0,0.1,tmCode%[],tmString$); 'add the file time info to the memory channel
-''MemSave(mc%,todChan%,8); 'saves the mem chan as a textmark into channel todChan%
-''ChanDelete(mc%);
-''ChanShow(todChan%);
-''return todChan%;
-'return mc%
-'end;
