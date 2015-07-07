@@ -94,6 +94,7 @@ It should now be recording!
 ### Stimulus
 * `<` (60): start of stimulus
 * `>` (62): end of stimulus
+* `#` (35): premature end of stimulus (when `peckstopon=1`)
 
 ### Response
 * `R` (82): right key peck
@@ -112,5 +113,13 @@ It should now be recording!
 ### Trial logic
 * `(` (40): Start of intertrial interval
 * `)` (41): End of intertrial interval
+* `S` : ready stim
+* `P` : sequencer paused
+
+### Manual controls
+* `I` : center key light invert
+* `N` : turn off everything
+* `R` : turn off everything except house light
+* `H` : toggle hopper up or down
 
 
