@@ -95,14 +95,15 @@ FEED:       CALL   FLSHQ           ;flash regardless of feed if correct >flash c
             ADDI   corrCnt,1       ;increment correct counter
             BLT    corrCnt,corrThr,NOFEED ;if threshold not reached, don't feed. >consequate
             BRAND  NOFEED,pnofeed  ;consequate probabilistically >consequate
+            MOVI   corrCnt,0       ; reset the feed counter
+SAMPVR:     MOVRND corrThr,3,1     ;resample from 1 to 2^3 (8) > feed
+            BGT    corrThr,corrMax,SAMPVR ;if the sampled threshold is greater than the max, then resample it. >feed
             DIGLOW [11110111]      ;raise the feeder   >feed
             MARK   70,FDDEL        ;uppercase F, bird is fed >feed
 ;need hopper up, resp during feed check here
 NOFEED:     MARK   102,FDDONE      ;lowercase f, bird is correct, but not fed >no feed
 FDELDN:     MARK   125             ;Mark end of Feed Period >feed
 FDDONE:     DIGLOW [11111111]      ;lower the feeder 
-SAMPVR:     MOVRND corrThr,3,1     ;sample from 1 to 2^3 (8) > feed
-            BGT    corrThr,corrMax,SAMPVR ;if the sampled threshold is greater than the max, then resample it. >feed
             JUMP   STITI           ;goto intertrial interval >ITI
 ;need hopper down check here
 ;
@@ -340,3 +341,6 @@ FLOOP:      DIGLOW [.....000]      ;turn on cue light  >flash cue light
 
         'R  DIGLOW [11111111]      ;turn off everything except house light >ResetBox
             HALT
+
+        'H  DIGLOW [....i...]      ;hopper invert >Hopper up or down
+            JUMP   WCTR

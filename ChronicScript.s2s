@@ -112,7 +112,7 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
     ' define available sequencer files
 	var chronNOseq$       := seqPath$ + "chron_seq_NeurOnly.pls";
 	var chronNBseq2AC$    := seqPath$ + "chron_seq_2ac_VR.pls";
-	var chronNBseq2ACPS$  := seqPath$ + "chron_seq_2ac-peckstop.pls";
+	var chronNBseq2ACPS$  := seqPath$ + "chron_seq_2ac_VR-peckstop.pls";
 	var chronNBseqGNG$    := seqPath$ + "chron_seq_gng.pls";
 	var chronNBseqGNGPS$  := seqPath$ + "chron_seq_gng-peckstop.pls";
 	var chronNBseq$ := chronNBseq2AC$; '2ac is default (see DoSubjectInfo%() for switch)
@@ -300,9 +300,9 @@ if 1 then 'This lets us fold away the variable set up for ease of viewing while 
 	var TIMEOUT     := 10.0;  'timeout duration in seconds
 	var ITI         := 2.0;   'intertrial interval in seconds
 	var ITINO;
-	var MINITINO    := 3.0;  'minimum intertrial interval in seconds for neural recording only
-	var MAXITINO    := 5.0; 	'maximum intertrial interval in seconds for neural recording only
-	var relS        := -4.0; 	'pretrigger save seconds
+	var MINITINO    := 8.0;  'minimum intertrial interval in seconds for neural recording only
+	var MAXITINO    := 10.0; 	'maximum intertrial interval in seconds for neural recording only
+	var relS        := -60.0; 	'pretrigger save seconds
 	var correctionTrialsOn% := 0; 'default is no correction trials (set in SEsetupStimSelectStyle%()
 	var doCorrectionTrial%  := 0;
 	var doFeedCorrectionTrials% := 0;
@@ -902,7 +902,7 @@ end
 '
 func HInitTrial%()
 var itSuccess%:=0,fn$;
-var classFromSeq%,pctnofeedFromSeq,pctnotoFromSeq;
+var classFromSeq%,pctnofeedFromSeq,pctnotoFromSeq,corrCountFromSeq%,corrThreshFromSeq%;
 var itiSeqSteps%,timeoutSeqSteps%,feedSeqSteps%,respwinSeqSteps%;
 '
 FilePathSet(stimPath$);
@@ -984,7 +984,9 @@ if currentStimLength>0.0 then
 	classFromSeq%:=SampleSeqVar(22); 'get class from sequencer
 	pctnofeedFromSeq:=SampleSeqVar(25); 'get percent reinforcement in sequencer
 	pctnotoFromSeq:=SampleSeqVar(26); 'get percent timeouts in sequencer
-	if VERBOSELOG% then PL(Print$("classFromSeq%= %d\t pctnofeedFromSeq = %d\t pctnotoFromSeq = %d",classFromSeq%,pctnofeedFromSeq,pctnotoFromSeq)); endif
+    corrCountFromSeq%:=SampleSeqVar(27); 'get class from sequencer
+	corrThreshFromSeq%:=SampleSeqVar(28); 'get threshold from sequencer
+	if VERBOSELOG% then PL(Print$("classFromSeq%= %d\t pctnofeedFromSeq = %d\t pctnotoFromSeq = %d\t corrCountFromSeq = %d\t corrThreshFromSeq = %d",classFromSeq%,pctnofeedFromSeq,pctnotoFromSeq,corrCountFromSeq%,corrThreshFromSeq%)); endif
 	'	
 	docase 'TODO: fix trialerrors so that they reset in the right places 'BH needs to be taken into account here
     case qMC% = 1 then

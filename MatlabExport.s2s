@@ -248,6 +248,7 @@ for catNum% := 1 to numExpts% do
 		datafilehandle% := FileOpen(filesToExport$[catNum%][fileNum%-1],0,0);
         savename$ := filesToExport$[catNum%][fileNum%-1];
         savename$ := DelStr$(savename$,0,InStr(savename$,"\\Sub"));
+        savename$ := DelStr$(savename$,0,InStr(savename$,"\\AutoSv"));
         savename$ := DelStr$(savename$,InStr(savename$,".smr"),Len(savename$));
 		PrintLog("saving %s to export files\n", filesToExport$[catNum%][fileNum%-1]);
 		PrintLog("saving as %s\n", savename$);
