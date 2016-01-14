@@ -153,7 +153,7 @@ for currepoch% :=0 to numepochs%-1 do
 		
 		tmphandle% := FileOpen(allFileNames$[numAllFiles%],9,0); 'open as binary to get file size info
 		if tmphandle% < 0 then
-            Message("error: %d, %s",tmphandle%,Error$(tmphandle%));
+            Message("%s error: %d, %s",allFileNames$[numAllFiles%],tmphandle%,Error$(tmphandle%));
         endif            
         View(tmphandle%);
         
@@ -161,6 +161,9 @@ for currepoch% :=0 to numepochs%-1 do
 		BSeek(0,0); 'return to beginning of file, for cleanliness sake		
 		FileClose(0);
 		tmphandle% := FileOpen(allFileNames$[numAllFiles%],0,0); 'open as spike2 data file to get time info
+		if tmphandle% < 0 then
+            Message("%s error: %d, %s",allFileNames$[numAllFiles%],tmphandle%,Error$(tmphandle%));
+        endif            
 		View(tmphandle%);		
 		numwfChans% := ChanList(wfchans%[],1); 'get a list of all waveform channels
 		if numwfChans% < 1 then
